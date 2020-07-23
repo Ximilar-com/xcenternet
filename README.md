@@ -48,6 +48,7 @@ There is an active [merge request](https://github.com/tensorflow/addons/pull/112
 | ResNet 18      | CenterNet    | CONCAT       | 0.64        | Pascal VOC   |   [Link](https://drive.google.com/drive/folders/1Do-TRHDmY6nkYVMXo5Yd4jBKnUK0eaJJ?usp=sharing)   |    [Link](https://tensorboard.dev/experiment/IWfKJYspQVaYHJWCwQZiVA/)     |     512     |
 | ResNet 18      | TTF / DIOU   | DCNSHORTCUT*  | 0.7         | Pascal VOC   |   [Link](https://drive.google.com/drive/folders/1HmgZbVbq9C00Lkzqqyu76Cq5AmAR940L?usp=sharing)   |    [Link](https://tensorboard.dev/experiment/vkHkd0CORAW9BFBw9Noa4A/)     |     512     |
 | ResNet 18      | TTF / DIOU   | DCNSHORTCUT*  | 0.28        | MSCOCO17     |   [Link](https://drive.google.com/drive/folders/1x0iskz7hB6wN4XIRxrpTVnXVdIf83YNU?usp=sharing)   |    [Link](https://tensorboard.dev/experiment/ip5amy6NQ6SMD5GJL3wMKQ/)     |     384     |
+
 \* Model is using deformable convolutions, you need to install [this fork](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) of TensorFlow Addons, see the paragraph above for more info.
 
 
