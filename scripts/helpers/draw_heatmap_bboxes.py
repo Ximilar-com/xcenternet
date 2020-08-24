@@ -14,7 +14,9 @@ args = parser.parse_args()
 heatmap_shape = (1, args.image_size, args.image_size, len(args.labels[0]))
 
 if args.ttf_version:
-    heatmap_dense, box_target, reg_weight, _ = draw_heatmaps_ttf(heatmap_shape, args.bboxes, args.labels)
+    heatmap_dense, box_target, reg_weight, _ = draw_heatmaps_ttf(
+        heatmap_shape, np.array(args.bboxes), np.array(args.labels)
+    )
     heatmap_dense = heatmap_dense[0]
     print("Area weights", [bbox_areas_log_np(np.asarray(box)) for box in args.bboxes[0]])
 else:
