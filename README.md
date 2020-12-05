@@ -82,7 +82,7 @@ You will need to use `--dataset custom` arg  with `--dataset_path_tr train.json`
 
     CUDA_VISIBLE_DEVICES=0 python train.py --dataset custom --dataset_path_tr train.json --dataset_path_te test.json  --batch_size 20 --pretrained_weights ~/centernet_results/dcn/model.h5 --model_type centernet --model_mode dcnshortcut --image_size 512 &> custom.out &
 
-The format of bounding box in mscoco is [xmin, ymin, width, height] which is converted in our code to the [ymin, xmin, ymax, xmax] (our format) inside of [`custom_dataset.py`](xcenternet/datasets/custom_dataset.py) data loader. For example you can try to generate mscoco format with images for mnist detection through [`scripts/helpers/make_mnist.py`](scripts/helpers/make_mnist_coco.py). Every dataset is internally working with relative [0-1] coordinates and during the training are converted to absolute values.
+The format of bounding box in mscoco is [xmin, ymin, width, height] which is converted in our code to the [ymin, xmin, ymax, xmax] (our format) inside of [`custom_dataset.py`](xcenternet/datasets/custom_dataset.py) data loader. For example you can try to generate mscoco format with images for mnist detection through [`scripts/helpers/make_mnist.py`](scripts/helpers/make_mnist_coco.py). Every dataset is internally working with relative [0-1] coordinates and during the training are converted to absolute setReadOnlyAugmentations.
 
 To change learning rate behaviour rewrite method scheduler in dataset class.
 
