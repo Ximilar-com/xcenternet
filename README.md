@@ -88,7 +88,7 @@ To change learning rate behaviour rewrite method scheduler in dataset class.
 
 ##### Multi-GPU training
 
-If you would like to train your model on multiple gpus, simply specify env variable CUDA_VISIBLE_DEVICES=0,1,2,... when running [`train.py`](). The model is mirrored on the gpus, you should also increase the batch_size according to number of gpus.
+If you would like to train your model on multiple gpus, simply specify env variable CUDA_VISIBLE_DEVICES=0,1,2,... when running [`train.py`](scripts/train.py). The model is mirrored on the gpus, you should also increase the batch_size according to number of gpus.
 
 ## Modifications
 
