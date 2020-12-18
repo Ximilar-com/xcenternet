@@ -20,7 +20,7 @@ This implementation is not exact copy of the papers or pytorch implementations a
 * Added *stronger* NMS for better results
 * No pose estimation or 3D, just simple object detection
 * Using deformable convolutions
-* Easy to finetune on your own dataset and customize your own image augmemtation, feature extraction heads, backbones ...
+* Easy to finetune on your own dataset and customize your own image augmentation, feature extraction heads, backbones ...
 
 We were inspired (and some part of the source codes were taken) by (from) other open-source repositories ([tf-retinanet](https://github.com/fizyr/tf-retinanet), [keras-CenterNet](https://github.com/xuannianz/keras-CenterNet), ...), please see *License* section down on this project page. Without them this will be not possible, **BIG THANKS to them**.
 
@@ -36,7 +36,7 @@ You can read more about this improvement of standard convolutional layers for ex
 We found out that it works very well on our models. 
 
 Unfortunately there is no official implementation.
-We are using implementation from [smallsunsun1](https://github.com/smallsunsun1]). Currently, you
+We are using implementation from [smallsunsun1](https://github.com/smallsunsun1). Currently, you
 can find it in his [fork](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) of TensorFlow Addons.
 There is an active [merge request](https://github.com/tensorflow/addons/pull/1129) to the Addons, we hope it will get there soon.
 
