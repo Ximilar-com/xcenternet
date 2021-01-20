@@ -5,7 +5,7 @@
 -----------------
 
 
-Modified **TensorFlow 2.2+** (tf.keras) implementation of **CenterNet** object detection as described in [Objects as Points](https://arxiv.org/abs/1904.07850)
+Modified **TensorFlow 2.4+** (or 2.2 if you use XCenterNet tagged as v1.0.0) tf.keras implementation of **CenterNet** object detection as described in [Objects as Points](https://arxiv.org/abs/1904.07850)
 by Xingyi Zhou, Dequan Wang, Philipp Krähenbühl and **TTFNet** as described in [Training-Time-Friendly Network for Real-Time Object Detection](https://arxiv.org/pdf/1909.00700.pdf) by Liu Tu Zheng, Guodong Xu, Zheng Yang, Haifeng Liu, Deng Cai. For original implementation please see [Centernet pytorch repository](https://github.com/xingyizhou/CenterNet) and [TTFNet pytorch repository](https://github.com/ZJULearning/ttfnet).
 
 <div align="center">
@@ -15,6 +15,7 @@ by Xingyi Zhou, Dequan Wang, Philipp Krähenbühl and **TTFNet** as described in
 This implementation is not exact copy of the papers or pytorch implementations as we modified it for our needs, some of the features of this repo:
 
 * Using tf2.2+ keras model train_step with tf.data.dataset
+* Using tensorflow.keras.applications.efficientnet from tf2.3+
 * Efficientnet and Resnet backbones
 * Multi-scale training and augmentations for tf.dataset
 * Added *stronger* NMS for better results
@@ -59,9 +60,9 @@ The mAP results in table are for IoU > 0.5 and score threshold > 0.01. For MSCOC
 ## Installation
 
 1) Clone this repository.
-2) Install tensorflow 2.2+
+2) Install tensorflow 2.4+
 3) Clone and Install [tf-image](https://github.com/Ximilar-com/tf-image)
-4) Install [tf-addons](https://www.tensorflow.org/addons). If you want to use models with deformable convolution (DCN) you will need to install tf.addons from [this branch](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops).
+4) Install [tf-addons](https://www.tensorflow.org/addons). If you want to use models with deformable convolution (DCN) you will need to install tf.addons from [this branch](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) for tf2.2 or [updated fork](https://github.com/Cospel/addons/tree/feature/deformable_ops) for tf2.4. 
 5) In the repository, execute `pip install . --user`.
 6) Alternatively, you can run the code directly from the cloned repository, however you need to run `python setup.py build_ext --inplace` to compile Cython code first.
 7) Install [classification_models](https://github.com/qubvel/classification_models), tfds and requirements.txt ...

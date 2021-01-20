@@ -1,37 +1,16 @@
 import tensorflow as tf
-import tensorflow.python.keras.applications.efficientnet as efficientnet
+from tensorflow.keras.applications.efficientnet import EfficientNetB0, EfficientNetB1, EfficientNetB2
 
 from xcenternet.model.backbone.upsample import upsample
 from xcenternet.model.config import XModelMode
 from xcenternet.model.layers import BatchNormalization
 
 
-def load_weights(weights, model_name="efficientnetb0", include_top=False):
-    if weights == "imagenet":
-        if include_top:
-            file_suffix = ".h5"
-            file_hash = efficientnet.WEIGHTS_HASHES[model_name[-2:]][0]
-        else:
-            file_suffix = "_notop.h5"
-            file_hash = efficientnet.WEIGHTS_HASHES[model_name[-2:]][1]
-        file_name = model_name + file_suffix
-        weights_path = efficientnet.data_utils.get_file(
-            file_name, efficientnet.BASE_WEIGHTS_PATH + file_name, cache_subdir="models", file_hash=file_hash
-        )
-    return weights_path
-
-
 def create_efficientnetb0(height, width, pretrained: bool, mode: XModelMode = XModelMode.SIMPLE):
     shape = (height, width, 3)
 
-    efficientnet.layers.BatchNormalization = BatchNormalization
-    base_model = efficientnet.EfficientNetB0(input_shape=shape, include_top=False, weights=None)
-
-    if pretrained:
-        base_model.load_weights(load_weights("imagenet", model_name="efficientnetb0"), by_name=True, skip_mismatch=True)
-        print("\033[31m", "Imagenet model loaded", "\033[0m")
-    else:
-        print("\033[31m", "Imagenet model not loaded", "\033[0m")
+    tf.keras.layers.BatchNormalization = BatchNormalization
+    base_model = EfficientNetB0(input_shape=shape, include_top=False, weights="imagenet" if pretrained else None)
 
     inputs = tf.keras.Input(shape=shape, name="input")
     base_model, features = upsample(
@@ -48,11 +27,8 @@ def create_efficientnetb0(height, width, pretrained: bool, mode: XModelMode = XM
 def create_efficientnetb1(height, width, pretrained: bool, mode: XModelMode = XModelMode.SIMPLE):
     shape = (height, width, 3)
 
-    efficientnet.layers.BatchNormalization = BatchNormalization
-    base_model = efficientnet.EfficientNetB1(input_shape=shape, include_top=False, weights=None)
-
-    if pretrained:
-        base_model.load_weights(load_weights("imagenet", model_name="efficientnetb1"), by_name=True, skip_mismatch=True)
+    tf.keras.layers.BatchNormalization = BatchNormalization
+    base_model = EfficientNetB1(input_shape=shape, include_top=False, weights="imagenet" if pretrained else None)
 
     inputs = tf.keras.Input(shape=shape, name="input")
     base_model, features = upsample(
@@ -63,10 +39,9 @@ def create_efficientnetb1(height, width, pretrained: bool, mode: XModelMode = XM
 
 def create_efficientnetb2(height, width, pretrained: bool, mode: XModelMode = XModelMode.SIMPLE):
     shape = (height, width, 3)
-    base_model = efficientnet.EfficientNetB2(input_shape=shape, include_top=False, weights=None)
 
-    if pretrained:
-        base_model.load_weights(load_weights("imagenet", model_name="efficientnetb2"), by_name=True, skip_mismatch=True)
+    tf.keras.layers.BatchNormalization = BatchNormalization
+    base_model = EfficientNetB2(input_shape=shape, include_top=False, weights="imagenet" if pretrained else None)
 
     inputs = tf.keras.Input(shape=shape, name="input")
     base_model, features = upsample(
