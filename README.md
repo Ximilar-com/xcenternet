@@ -38,7 +38,8 @@ We found out that it works very well on our models.
 
 Unfortunately there is no official implementation.
 We are using implementation from [smallsunsun1](https://github.com/smallsunsun1). Currently, you
-can find it in his [fork](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) of TensorFlow Addons.
+can find it in his [fork](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) of TensorFlow Addons for tf2.2 or
+[here](https://github.com/Cospel/addons/tree/feature/deformable_ops) if you want tf2.4 version.
 There is an active [merge request](https://github.com/tensorflow/addons/pull/1129) to the Addons, we hope it will get there soon.
 
 ## Pretrained Models
@@ -50,7 +51,7 @@ There is an active [merge request](https://github.com/tensorflow/addons/pull/112
 | ResNet 18      | TTF / DIOU   | DCNSHORTCUT*  | 0.7         | Pascal VOC   |   [Link](https://drive.google.com/drive/folders/1HmgZbVbq9C00Lkzqqyu76Cq5AmAR940L?usp=sharing)   |    [Link](https://tensorboard.dev/experiment/vkHkd0CORAW9BFBw9Noa4A/)     |     512     |
 | ResNet 18      | TTF / DIOU   | DCNSHORTCUT*  | 0.28        | MSCOCO17     |   [Link](https://drive.google.com/drive/folders/1x0iskz7hB6wN4XIRxrpTVnXVdIf83YNU?usp=sharing)   |    [Link](https://tensorboard.dev/experiment/ip5amy6NQ6SMD5GJL3wMKQ/)     |     384     |
 
-\* Model is using deformable convolutions, you need to install [this fork](https://github.com/smallsunsun1/addons/tree/feature/deformable_ops) of TensorFlow Addons, see the paragraph above for more info.
+\* Model is using deformable convolutions, you need to install TensorFlow Addons with deformable convolutions, see the paragraph above for more info.
 
 
 The mAP results in table are for IoU > 0.5 and score threshold > 0.01. For MSCOCO the mAP is for IoU=0.50:0.95 area=all. We still experience bit overfitting on Pascal VOC and MSCOCO, probably better augmentation, bigger batch size, longer training time can improve the result by few percentage points. In order to train CenterNet you will need to train it in our experience for many epochs. You can see the training progress in provided tensorboards along with learning rate schedule. We use Pascal VOC 2007+2012 TRAIN and VALIDATION dataset for training and we evaluate on Pascal VOC 2007 TEST. For MSCOCO we use 2017 TRAIN vs VALIDATION. Note that all tensorboard logs shows mAP for score threshold > 0.3 and IoU > 0.5.
