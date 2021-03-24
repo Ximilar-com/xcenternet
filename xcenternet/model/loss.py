@@ -74,7 +74,6 @@ def compute_giou_loss(box_target, wh_weight, pred_wh, mode="diou", reduce="sum")
         return tf.math.reduce_mean(losses * weight) / avg_factor
     elif reduce == "sum":
         return tf.math.reduce_sum(losses * weight) / avg_factor
-    tf.print(tf.shape(losses))
     return (losses * weight) / avg_factor, bboxes_num_per_sample
 
 
