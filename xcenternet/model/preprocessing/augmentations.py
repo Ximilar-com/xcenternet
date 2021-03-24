@@ -21,7 +21,7 @@ class EasyAugmentation(Augmentation):
         super().__init__(probability)
 
         self.augmentation_config = AugmentationConfig()
-        self.augmentation_config.color = ColorAugmentation.MILD
+        self.augmentation_config.color = ColorAugmentation.LIGHT
         self.augmentation_config.crop = True
         self.augmentation_config.distort_aspect_ratio = AspectRatioAugmentation.NONE
         self.augmentation_config.quality = True
