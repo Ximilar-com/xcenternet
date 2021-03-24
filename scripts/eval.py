@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 from xcenternet.model.centernet import XTTFModel, XCenternetModel
 
-from xcenternet.datasets import CocoDataset, VocDataset, CustomDataset, XimilarDataset
+from xcenternet.datasets import CocoDataset, VocDataset, CustomDataset
 from xcenternet.model.model_factory import create_model
 from xcenternet.model.preprocessing.batch_preprocessing import BatchPreprocessing
 from xcenternet.model.config import ModelConfig, XModelType, XModelBackbone, XModelMode
@@ -39,7 +39,7 @@ def load_coco_classes(coco):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run evaluation of centernet.")
-    parser.add_argument("--dataset", type=str, default="voc", help="voc or coco, custom or ximilar")
+    parser.add_argument("--dataset", type=str, default="voc", help="voc or coco, custom (coco format)")
     parser.add_argument("--dataset_path", type=str, default="", help="path to custom dataset")
     parser.add_argument("--model_type", type=str, default="centernet", help="centernet or ttfnet")
     parser.add_argument("--model_mode", type=str, default="dcnshortcut", help="concat, sum or simple")
@@ -79,8 +79,6 @@ if __name__ == "__main__":
         dataset = CustomDataset(args.dataset_path, args.dataset_path, 0)
         coco_true = COCO(args.dataset_path)
         _, coco_labels, coco_labels_inverse = load_coco_classes(coco_true)
-    elif args.dataset == "ximilar":
-        dataset = XimilarDataset(args.dataset_path, 0)
     else:
         print(f"Unknown dataset {args.dataset}.")
         exit()

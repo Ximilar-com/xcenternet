@@ -2,7 +2,7 @@ import argparse
 import os
 import tensorflow as tf
 
-from xcenternet.datasets import CocoDataset, VocDataset, XimilarDataset, CustomDataset
+from xcenternet.datasets import CocoDataset, VocDataset, CustomDataset
 from xcenternet.model.callbacks import MAPValidationCallback
 from xcenternet.model.config import ModelConfig, XModelType, XModelBackbone, XModelMode
 from xcenternet.model.model_factory import create_model, load_and_update_model, load_pretrained_weights
@@ -13,7 +13,7 @@ from xcenternet.tensorboard.image_log import ImageLog
 from xcenternet.tensorboard.result_log import ResultImageLogCallback
 
 parser = argparse.ArgumentParser(description="Run training of centernet on VOC.")
-parser.add_argument("--dataset", type=str, default="voc", help="voc, coco, custom (coco format) or ximilar")
+parser.add_argument("--dataset", type=str, default="voc", help="voc, coco, custom (coco format)")
 parser.add_argument("--dataset_path_tr", type=str, default="", help="path to the train file")
 parser.add_argument("--dataset_path_te", type=str, default="", help="path to the test file")
 parser.add_argument("--model_type", type=str, default="centernet", help="centernet or ttfnet")
@@ -63,8 +63,6 @@ elif args.dataset == "coco":
     dataset = CocoDataset(args.lr)
 elif args.dataset == "custom":
     dataset = CustomDataset(args.dataset_path_tr, args.dataset_path_te, args.lr)
-elif args.dataset == "ximilar":
-    dataset = XimilarDataset(args.dataset_path_tr, args.lr)
 else:
     print(f"Unknown dataset {args.dataset}.")
     exit()
