@@ -146,9 +146,9 @@ class MAP(object):
                         self.true_positives[label].append(0)
                         continue
 
-                    overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)
-                    assigned_annotation = np.argmax(overlaps, axis=1)
-                    max_overlap = overlaps[0, assigned_annotation]
+                    overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)[0]
+                    assigned_annotation = np.argmax(overlaps)
+                    max_overlap = overlaps[assigned_annotation]
 
                     if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
                         self.false_positives[label].append(0)

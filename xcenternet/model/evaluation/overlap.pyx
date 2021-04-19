@@ -15,6 +15,8 @@ def compute_overlap(
 	np.ndarray[double, ndim=2] query_boxes
 ):
 	"""
+	Needs absolute coordinates!
+
 	Args
 		a: (N, 4) ndarray of float
 		b: (K, 4) ndarray of float
