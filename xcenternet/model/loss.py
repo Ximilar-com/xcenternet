@@ -25,8 +25,11 @@ def giou_loss(outputs, training_data, predictions):
     box_target = training_data["box_target"]
     reg_weight = training_data["reg_weight"]
 
-    # the 5.0 as weight of giou loss was taken as from original TTFNet paper
-    return 5.0 * compute_giou_loss(box_target, reg_weight, predictions[1])
+    # the 5.0 as weight of giou loss was taken as from original TTFNet pape
+    # for negative images we sometimes get nan values
+    value = 5.0 * compute_giou_loss(box_target, reg_weight, predictions[1])
+    value_not_nan = tf.dtypes.cast(tf.math.logical_not(tf.math.is_nan(value)), dtype=tf.float32)
+    return tf.math.multiply_no_nan(value, value_not_nan)
 
 
 @tf.function
