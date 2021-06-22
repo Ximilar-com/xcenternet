@@ -65,7 +65,7 @@ def decode(model_type: XModelType, heat, wh, reg=None, k=100, relative=False):
     return detections
 
 
-def filter_detections(detections, score_threshold=0.3, nms_iou_threshold=0.5, max_size=None):
+def filter_detections(detections, score_threshold=0.3, nms_iou_threshold=0.5, max_size=None, class_nms=False):
     """
     Remove detections with a low probability, run Non-maximum Suppression. If set, apply max size to all boxes.
 
@@ -73,6 +73,7 @@ def filter_detections(detections, score_threshold=0.3, nms_iou_threshold=0.5, ma
     :param score_threshold: Minimal probability of a detection to be included in the result.
     :param nms_iou_threshold: Threshold for deciding whether boxes overlap too much with respect to IOU.
     :param max_size: Max size to strip the given bounding boxes, default: None = no stripping.
+    :param class_nms: If True use nms per classes (default False)
     :return: Filtered bounding boxes.
     """
     mask = detections[:, 4] >= score_threshold
@@ -84,6 +85,27 @@ def filter_detections(detections, score_threshold=0.3, nms_iou_threshold=0.5, ma
 
     if tf.shape(bboxes)[0] == 0:
         return tf.constant([], shape=(0, 6))
+
+    if class_nms:
+        unique_labels, _ = tf.unique(labels)
+        detection_results = []
+        for label in unique_labels:
+            y = tf.where(result[:, 5] == label)
+
+            c_bboxes = tf.gather_nd(bboxes, y)
+            c_labels = tf.gather_nd(labels, y)
+            c_scores = tf.gather_nd(scores, y)
+
+            c_bboxes = tf.clip_by_value(tf.cast(c_bboxes, tf.float32), 0.0, max_size)
+
+            indices = tf.image.non_max_suppression(c_bboxes, c_scores, tf.shape(c_bboxes)[0], iou_threshold=nms_iou_threshold)
+            selected_boxes = tf.gather(c_bboxes, indices)
+            selected_labels = tf.gather(c_labels, indices)
+            selected_scores = tf.gather(c_scores, indices)
+            detection_results.append(tf.concat(
+                [selected_boxes, tf.expand_dims(selected_scores, axis=1), tf.expand_dims(selected_labels, axis=1)], axis=1
+            ))
+        return tf.concat(detection_results, axis=0)
 
     max_objects = tf.shape(result)[0]
     selected_indices = tf.image.non_max_suppression(bboxes, scores, max_objects, iou_threshold=nms_iou_threshold)
