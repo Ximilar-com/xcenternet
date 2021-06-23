@@ -127,10 +127,10 @@ def get_pred_wh(shape):
 def move_point(center, pct, index, field_1, field_2):
     move = center[field_1] / center[field_2]
     if center["center"][index] < pct["center"][index]:
-        center["center"][index] = center["center"][index] - pct[field_1] * move
+        center["center"][index] = center["center"][index] - pct[field_1] * (move / 6)
         pct["center"][index] = pct["center"][index] + pct[field_1] / 2
     else:
-        center["center"][index] = center["center"][index] + pct[field_1] * move
+        center["center"][index] = center["center"][index] + pct[field_1] * (move / 6)
         pct["center"][index] = pct["center"][index] - pct[field_1] / 2
 
 
@@ -167,7 +167,7 @@ def draw_heatmaps_ttf2(shape, bboxes, labels):
             fake_heatmap = np.zeros((shape[1], shape[2]))
 
             if h > 0 and w > 0:
-                # heuristic for moving points
+                # heuristic for moving points when there is a collision in centers
                 for pct in centers:
                     if center["index"] == pct["index"]:
                         continue
