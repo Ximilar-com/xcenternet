@@ -125,7 +125,9 @@ def get_pred_wh(shape):
 
 
 def move_point(center, pct, index, field_1, field_2):
+    # compute the aspect ratio of height and width
     move = center[field_1] / center[field_2]
+    # move it to just one dominant side
     if center["center"][index] < pct["center"][index]:
         center["center"][index] = center["center"][index] - pct[field_1] * (move / 6)
         pct["center"][index] = pct["center"][index] + pct[field_1] / 2
@@ -161,7 +163,7 @@ def draw_heatmaps_ttf2(shape, bboxes, labels):
             centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i})
             i += 1
 
-        print(centers)
+        # objects are sorted from biggest area to minimum
         for bbox, cls_id, center in zip(bboxes_new, labels_new, centers):
             bbox = np.asarray(bbox)
             fake_heatmap = np.zeros((shape[1], shape[2]))
@@ -169,14 +171,20 @@ def draw_heatmaps_ttf2(shape, bboxes, labels):
             if h > 0 and w > 0:
                 # heuristic for moving points when there is a collision in centers
                 for pct in centers:
+                    # if we compare same object then skip
                     if center["index"] == pct["index"]:
                         continue
-                    distance = np.linalg.norm(pct["center"] - center["center"])
+
+                    # computes ratios (height, width) between two rectangles
                     h_radius_r, w_radius_r = center["h_radius"] / pct["h_radius"], center["w_radius"] / pct["w_radius"]
+                    # sort in which direction we want to object first (height [y] or width [x])
                     fields = ["h_radius", "w_radius"] if h_radius_r > w_radius_r else ["w_radius", "h_radius"]
                     for field in fields:
+                        # compute distance between two centers
                         distance = np.linalg.norm(pct["center"] - center["center"])
+                        # if distance between two centers is smaller than radius of heatmap of analysis object
                         if distance < center[field]/2:
+                            # then move the centers from each other
                             s_field = "w_radius" if field == "h_radius" else "h_radius"
                             index = 0 if field == "h_radius" else 1
                             move_point(center, pct, index, field, s_field)

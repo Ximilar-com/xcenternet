@@ -6,8 +6,9 @@ from xcenternet.model.encoder import draw_heatmaps, draw_heatmaps_ttf, draw_heat
 
 parser = argparse.ArgumentParser(description="Draw given bounding boxes and their heatmap. All in one B&W image.")
 parser.add_argument("--image_size", type=int, default=1024, help="image size")
-parser.add_argument("--bboxes", type=list, default=[[[ 304, 582, 422, 705 ], [ 304, 582, 422, 705 ], [ 238, 290, 465, 988 ], [ 38, 290, 665, 988 ], [ 38, 490, 665, 788 ]]], help="bounding boxes")
-parser.add_argument("--labels", type=list, default=[[1, 1, 0,0,0]])
+parser.add_argument("--bboxes", type=list, default=[[[92, 208, 327, 355], [70, 158, 300, 305]]], help="bounding boxes")
+# parser.add_argument("--bboxes", type=list, default=[[[ 304, 582, 422, 705 ], [ 304, 582, 422, 705 ], [ 238, 290, 465, 988 ], [ 38, 290, 665, 988 ], [ 38, 490, 665, 788 ]]], help="bounding boxes")
+parser.add_argument("--labels", type=list, default=[[1, 0]])
 parser.add_argument("--ttf_version", type=bool, default=False, help="use our tf implementation")
 parser.add_argument("--output", type=str, default="heatmap.png", help="path to heatmap output")
 args = parser.parse_args()
