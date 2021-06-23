@@ -124,6 +124,87 @@ def get_pred_wh(shape):
     return base_loc
 
 
+def move_point(center, pct, index, field_1, field_2):
+    move = center[field_1] / center[field_2]
+    if center["center"][index] < pct["center"][index]:
+        center["center"][index] = center["center"][index] - pct[field_1] * move
+        pct["center"][index] = pct["center"][index] + pct[field_1] / 2
+    else:
+        center["center"][index] = center["center"][index] + pct[field_1] * move
+        pct["center"][index] = pct["center"][index] - pct[field_1] / 2
+
+
+def draw_heatmaps_ttf2(shape, bboxes, labels):
+    heat_map = np.zeros(shape, dtype=np.float32)
+    box_target = np.ones((shape[0], shape[1], shape[2], 4), dtype=np.float32)
+    reg_weight = np.zeros((shape[0], shape[1], shape[2], 1), dtype=np.float32)
+    box_target_offset = np.zeros((shape[0], shape[1], shape[2], 4), dtype=np.float32)
+
+    meshgrid = get_pred_wh((shape[1], shape[2]))
+    centers = []
+
+    for b in range(shape[0]):
+        # sort the boxes by the area from max to min
+        areas = np.asarray([bbox_areas_log_np(np.asarray(bbox)) for bbox in bboxes[b]])
+        indices = np.argsort(-areas)
+
+        bboxes_new = bboxes[b][indices]
+        labels_new = labels[b][indices]
+
+        i = 0
+        for bbox, cls_id in zip(bboxes_new, labels_new):
+            bbox = np.asarray(bbox)
+            area = bbox_areas_log_np(bbox)
+            w, h = bbox[3] - bbox[1], bbox[2] - bbox[0]
+            h_radius, w_radius = radius_ttf(bbox, h, w)
+            ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+            centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i})
+            i += 1
+
+        print(centers)
+        for bbox, cls_id, center in zip(bboxes_new, labels_new, centers):
+            bbox = np.asarray(bbox)
+            fake_heatmap = np.zeros((shape[1], shape[2]))
+
+            if h > 0 and w > 0:
+                # heuristic for moving points
+                for pct in centers:
+                    if center["index"] == pct["index"]:
+                        continue
+                    distance = np.linalg.norm(pct["center"] - center["center"])
+                    h_radius_r, w_radius_r = center["h_radius"] / pct["h_radius"], center["w_radius"] / pct["w_radius"]
+                    fields = ["h_radius", "w_radius"] if h_radius_r > w_radius_r else ["w_radius", "h_radius"]
+                    for field in fields:
+                        distance = np.linalg.norm(pct["center"] - center["center"])
+                        if distance < center[field]/2:
+                            s_field = "w_radius" if field == "h_radius" else "h_radius"
+                            index = 0 if field == "h_radius" else 1
+                            move_point(center, pct, index, field, s_field)
+
+
+                draw_truncate_gaussian(fake_heatmap, center["center"].astype(np.int32), center["h_radius"], center["w_radius"])
+                heat_map[b, :, :, cls_id] = np.clip(np.maximum(heat_map[b, :, :, cls_id], fake_heatmap), 0.0, 1.0)
+
+                # computes indices where is the current heatmap
+                box_target_inds = fake_heatmap > 0
+
+                # compute bbox size for current heatmap of bbox
+                box_target[b, box_target_inds, :] = bbox[:]
+
+                # this is just for debug/test
+                box_target_offset[b, box_target_inds, 0] = meshgrid[1, box_target_inds] - bbox[0]
+                box_target_offset[b, box_target_inds, 1] = meshgrid[0, box_target_inds] - bbox[1]
+                box_target_offset[b, box_target_inds, 2] = bbox[2] - meshgrid[1, box_target_inds]
+                box_target_offset[b, box_target_inds, 3] = bbox[3] - meshgrid[0, box_target_inds]
+
+                # compute weight map for current heatmap of bbox
+                local_heatmap = fake_heatmap[box_target_inds]
+                ct_div = local_heatmap.sum()
+                local_heatmap *= center["area"]
+                reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
+
+    return heat_map, box_target, reg_weight, box_target_offset
+
 def draw_heatmaps_ttf(shape, bboxes, labels):
     heat_map = np.zeros(shape, dtype=np.float32)
     box_target = np.ones((shape[0], shape[1], shape[2], 4), dtype=np.float32)
@@ -172,9 +253,8 @@ def draw_heatmaps_ttf(shape, bboxes, labels):
                 local_heatmap *= area
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
 
-                # print("box_target offset", box_target_offset[b, box_target_inds, :])
-    # print("*****")
     return heat_map, box_target, reg_weight, box_target_offset
+
 
 
 def bbox_areas_log_np(bbox):
