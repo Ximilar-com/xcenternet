@@ -171,9 +171,6 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
         if fix_collisions:
             # objects are sorted from biggest area to minimum
             for bbox, cls_id, center in zip(bboxes_new, labels_new, centers):
-                bbox = np.asarray(bbox)
-                fake_heatmap = np.zeros((shape[1], shape[2]))
-
                 if center["h"] > 0 and center["w"] > 0:
                     # heuristic for moving points when there is a collision in centers
                     for pct in centers:
