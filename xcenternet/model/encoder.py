@@ -106,7 +106,7 @@ def radius_ttf(bbox, h, w):
     alpha = 0.54
     h_radiuses_alpha = int(h / 2.0 * alpha)
     w_radiuses_alpha = int(w / 2.0 * alpha)
-    return max(0, h_radiuses_alpha), max(0, w_radiuses_alpha)
+    return max(1, h_radiuses_alpha), max(1, w_radiuses_alpha)
 
 
 import sys
@@ -143,9 +143,11 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
     box_target_offset = np.zeros((shape[0], shape[1], shape[2], 4), dtype=np.float32)
 
     meshgrid = get_pred_wh((shape[1], shape[2]))
-    centers = []
 
+    # go over batch of images
     for b in range(shape[0]):
+        centers = []
+
         # sort the boxes by the area from max to min
         areas = np.asarray([bbox_areas_log_np(np.asarray(bbox)) for bbox in bboxes[b]])
         indices = np.argsort(-areas)
@@ -179,7 +181,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
                             continue
 
                         # computes ratios (height, width) between two rectangles
-                        h_radius_r, w_radius_r = center["h_radius"] / pct["h_radius"], center["w_radius"] / pct["w_radius"]
+                        h_radius_r, w_radius_r = center["h_radius"] / (pct["h_radius"]), center["w_radius"] / (pct["w_radius"])
                         # sort in which direction we want to object first (height [y] or width [x])
                         fields = ["h_radius", "w_radius"] if h_radius_r > w_radius_r else ["w_radius", "h_radius"]
                         for field in fields:
@@ -218,7 +220,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
                 ct_div = local_heatmap.sum()
                 local_heatmap *= center["area"]
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
-
+        print(centers)
     return heat_map, box_target, reg_weight, box_target_offset
 
 
