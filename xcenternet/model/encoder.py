@@ -158,9 +158,14 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
             bbox = np.asarray(bbox)
             area = bbox_areas_log_np(bbox)
             w, h = bbox[3] - bbox[1], bbox[2] - bbox[0]
-            h_radius, w_radius = radius_ttf(bbox, h, w)
-            ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
-            centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i, "w": w, "h": h})
+
+            if w > 0 and h > 0:
+                h_radius, w_radius = radius_ttf(bbox, h, w)
+                ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+                centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i, "w": w, "h": h})
+            else:
+                # will be skipped
+                centers.append({"h": 0, "w": 0, "index": i})
             i += 1
 
         if fix_collisions:
