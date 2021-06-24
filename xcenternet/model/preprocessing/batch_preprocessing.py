@@ -190,7 +190,7 @@ class BatchPreprocessing(object):
             # otherwise we are fittint TTF net
             heatmap_dense, box_target, reg_weight, _ = tf.numpy_function(
                 func=draw_heatmaps_ttf,
-                inp=[heatmap_shape, bboxes, labels],
+                inp=[heatmap_shape, bboxes, labels, tf.constant(True)], # TODO: IF THIS DOES NOT WORK THEN FALSE
                 Tout=[tf.float32, tf.float32, tf.float32, tf.float32],
             )
             heatmap_dense = tf.reshape(heatmap_dense, heatmap_shape)
