@@ -220,7 +220,6 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
                 ct_div = local_heatmap.sum()
                 local_heatmap *= center["area"]
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
-        print(centers)
     return heat_map, box_target, reg_weight, box_target_offset
 
 
