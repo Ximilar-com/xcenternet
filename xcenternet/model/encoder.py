@@ -162,10 +162,10 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
             if w > 0 and h > 0:
                 h_radius, w_radius = radius_ttf(bbox, h, w)
                 ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
-                centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i, "w": w, "h": h})
+                centers.append({"center": ct, "h_radius": h_radius, "w_radius": w_radius, "area": area, "index": i, "w": w, "h": h, "skip": False})
             else:
                 # will be skipped
-                centers.append({"h": 0, "w": 0, "index": i})
+                centers.append({"h": 0, "w": 0, "index": i, "skip":True})
             i += 1
 
         if fix_collisions:
@@ -178,7 +178,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
                     # heuristic for moving points when there is a collision in centers
                     for pct in centers:
                         # if we compare same object then skip
-                        if center["index"] == pct["index"]:
+                        if center["index"] == pct["index"] or pct["skip"]:
                             continue
 
                         # computes ratios (height, width) between two rectangles
