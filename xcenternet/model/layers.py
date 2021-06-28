@@ -227,6 +227,62 @@ def set_regularization(model, kernel_regularizer=None, bias_regularizer=None):
     return out
 
 
+def coord_conv(input_tensor, with_r=True):
+    batch_size_tensor, x_dim, y_dim = tf.shape(input_tensor)[:3]
+    xx_channel = tf.range(y_dim, dtype=tf.float32)
+    xx_channel = tf.expand_dims(xx_channel, 0)
+    xx_channel = tf.expand_dims(xx_channel, 0) # shape [1,1,y_dim]
+    xx_channel = tf.tile(xx_channel, [batch_size_tensor, x_dim, 1])
+    xx_channel = tf.expand_dims(xx_channel, -1)
+
+    yy_channel = tf.range(x_dim, dtype=tf.float32)
+    yy_channel = tf.expand_dims(yy_channel, 0)
+    yy_channel = tf.expand_dims(yy_channel, -1) # shape [1,x_dim, 1]
+    yy_channel = tf.tile(yy_channel, [batch_size_tensor, 1, y_dim])
+    yy_channel = tf.expand_dims(yy_channel, -1)
+
+    xx_channel = 2 * xx_channel / (tf.cast(y_dim, dtype=tf.float32) - 1) - 1
+    yy_channel = 2 * yy_channel / (tf.cast(x_dim, dtype=tf.float32) - 1) - 1
+
+    if with_r:
+        polar_r = tf.math.sqrt(tf.square(xx_channel) + tf.square(yy_channel))
+        return tf.concat([input_tensor, xx_channel, yy_channel, polar_r], axis=-1)
+
+    return tf.concat([input_tensor, xx_channel, yy_channel], axis=-1)
+
+
+class AddCoords(tf.keras.layers.Layer):
+    """
+    Add CoordConv to tensor (x_offsets, y_offsets, polar_r)
+    """
+    def __init__(self, with_r=True):
+        super(AddCoords, self).__init__()
+        self.with_r = with_r
+
+    def call(self, input_tensor):
+        return coord_conv(input_tensor, with_r=self.with_r)
+
+
+class CoordConv2D(tf.keras.layers.Layer):
+    """
+    CoordConv layer as in the paper https://arxiv.org/pdf/1807.03247.pdf.
+    """
+    def __init__(self, with_r=True, *args, **kwargs):
+        super(CoordConv2D, self).__init__()
+        self.with_r = with_r
+        self.addcoords = AddCoords(with_r=with_r)
+        self.conv = tf.keras.layers.Conv2D(*args, **kwargs)
+
+    def call(self, input_tensor):
+        ret = self.addcoords(input_tensor)
+        ret = self.conv(ret)
+        return ret
+
+    def get_config(self):
+        config = super(CoordConv2D, self).get_config()
+        config['with_r'] = self.with_r
+
+
 class BatchNormalization(tf.keras.layers.BatchNormalization):
     """
     Replace BatchNormalization layers with this new layer.

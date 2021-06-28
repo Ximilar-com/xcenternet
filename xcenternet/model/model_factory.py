@@ -6,7 +6,7 @@ from xcenternet.model.backbone.resnet import create_resnet, create_resnet_18
 from xcenternet.model.centernet import XCenternetModel, XTTFModel
 from xcenternet.model.config import XModelType, XModelBackbone, XModelMode
 from xcenternet.model.constants import L2_REG, ACTIVATION, KERNEL_INIT
-from xcenternet.model.layers import BatchNormalization
+from xcenternet.model.layers import BatchNormalization, coord_conv
 
 CREATE_MODELS = {
     XModelBackbone.RESNET18: lambda w, h, pretrained, mode: create_resnet_18(w, h, pretrained, mode),
@@ -113,6 +113,8 @@ def _load_backbone(model_path, feature_layer="features"):
 def _finish_model(labels: int, input, features, model_type: XModelType):
     outputs = []
 
+    features = coord_conv(features, with_r=True)
+
     # output layers
     with tf.name_scope("heatmap"):
         output_heatmap = tf.keras.layers.Conv2D(
@@ -188,4 +190,5 @@ def _finish_model(labels: int, input, features, model_type: XModelType):
             )(output_local_offset)
         outputs.append(output_local_offset)
         return XCenternetModel(inputs=input, outputs=outputs, name=model_type.name.lower())
+
     return XTTFModel(inputs=input, outputs=outputs, name=model_type.name.lower())

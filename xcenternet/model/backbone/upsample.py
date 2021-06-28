@@ -8,6 +8,7 @@ from xcenternet.model.layers import (
     upsampleSum,
     deformConv2D,
     deformConv2DShortcut,
+    coord_conv,
 )
 
 
@@ -31,6 +32,8 @@ def upsample(base_model, x, layers, mode: XModelMode):
         c4 = tf.keras.layers.Dropout(rate=0.4)(c4)
         c3 = tf.keras.layers.Dropout(rate=0.3)(c3)
         c2 = tf.keras.layers.Dropout(rate=0.2)(c2)
+
+        c5 = coord_conv(c5, with_r=True)
 
         # You can create your own upsample layer for example FPN
         # if you need here, you need to also add this mode to the XmodelMode enum
