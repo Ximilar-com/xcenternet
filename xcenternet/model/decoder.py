@@ -105,6 +105,7 @@ def filter_detections(detections, score_threshold=0.3, nms_iou_threshold=0.5, ma
             detection_results.append(tf.concat(
                 [selected_boxes, tf.expand_dims(selected_scores, axis=1), tf.expand_dims(selected_labels, axis=1)], axis=1
             ))
+            # todo: fix sorting
         return tf.concat(detection_results, axis=0)
 
     max_objects = tf.shape(result)[0]
