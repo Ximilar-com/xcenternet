@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import tensorflow as tf
 
 
 def gaussian_radius(det_size, min_overlap=0.7):
@@ -144,6 +145,10 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
 
     meshgrid = get_pred_wh((shape[1], shape[2]))
 
+    # segmentation
+    GRID_SIZE = 24
+    seg_cat = np.zeros((shape[0], GRID_SIZE, GRID_SIZE, shape[3]), dtype=np.float32)
+
     # go over batch of images
     for b in range(shape[0]):
         centers = []
@@ -220,7 +225,23 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False):
                 ct_div = local_heatmap.sum()
                 local_heatmap *= center["area"]
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
-    return heat_map, box_target, reg_weight, box_target_offset
+
+        # segmentation categories map for solo
+        cat_shape = tf.squeeze(tf.constant([GRID_SIZE, GRID_SIZE]))
+        seg_centers = tf.cast(
+            tf.constant(
+                [[center["center"].astype(np.int32)[0] / shape[1] * GRID_SIZE, center["center"].astype(np.int32)[0] / shape[2] * GRID_SIZE] for center in centers if center["skip"] == False]
+            ),
+            dtype=tf.int32
+        )
+        cat = tf.scatter_nd(seg_centers, 
+            [cls_id + 1 for center, cls_id in zip(centers, labels_new) if center["skip"] == False],
+            cat_shape
+        ) - 1                                                     # shape (S, S)
+        cat = tf.one_hot(cat, shape[3], dtype=tf.float32)         # shape (S, S, C)
+        seg_cat[b] = cat.numpy()
+
+    return heat_map, box_target, reg_weight, box_target_offset, seg_cat
 
 
 def bbox_areas_log_np(bbox):

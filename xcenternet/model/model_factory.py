@@ -191,4 +191,26 @@ def _finish_model(labels: int, input, features, model_type: XModelType):
         outputs.append(output_local_offset)
         return XCenternetModel(inputs=input, outputs=outputs, name=model_type.name.lower())
 
+    # SEGMENTATION
+
+    # category branch
+    with tf.name_scope("segmentation_category"):
+        seg_cate_conv = tf.image.resize(features, [24, 24])
+        for i in range(4):
+            activation = "sigmoid" if i == 3 else "relu"
+            out_filters = labels if i == 3 else 128
+            padding = "same" #"valid" if i == 3 else "same"
+            kernel = (3, 3) #(1, 1) if i == 3 else (3, 3)
+            seg_cate_conv = tf.keras.layers.Conv2D(
+                out_filters,
+                kernel, 
+                1,
+                padding=padding,
+                kernel_initializer=tf.keras.initializers.RandomNormal(0.001),
+                activation=activation,
+                name="segcat_"+str(i)
+            )(seg_cate_conv)
+
+        outputs.append(seg_cate_conv)
+
     return XTTFModel(inputs=input, outputs=outputs, name=model_type.name.lower())

@@ -2,13 +2,13 @@ import tensorflow as tf
 
 from xcenternet.model.config import XModelType
 from xcenternet.model.decoder import decode
-from xcenternet.model.loss import offset_l1_loss, size_l1_loss, heatmap_focal_loss, giou_loss
+from xcenternet.model.loss import offset_l1_loss, size_l1_loss, heatmap_focal_loss, giou_loss, solo_loss
 
 
 class XCenternetModel(tf.keras.Model):
-    def __init__(self, *args, supervision=False, **kwargs):
+    def __init__(self, *args, segmentation=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.supervision = supervision
+        self.segmentation = segmentation
         self.custom_losses = None
 
     def compile(self, optimizer="adam", loss=None, metrics=None, **kwargs):
@@ -54,14 +54,26 @@ class XCenternetModel(tf.keras.Model):
 
 
 class XTTFModel(XCenternetModel):
-    def __init__(self, *args, supervision=False, **kwargs):
+    def __init__(self, *args, segmentation=False, **kwargs):
         super().__init__(*args, **kwargs)
 
     def decode(self, predictions, relative, k=100):
         return decode(XModelType.TTFNET, predictions[0], predictions[1], k=k, relative=relative)
 
     def get_loss_funcs(self):
-        return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss}
+        # return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss}
+        return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss, "solo_loss": solo_loss}
+
+
+# class XTTFSOLOModel(XCenternetModel):
+#     def __init__(self, *args, segmentation=False, **kwargs):
+#         super().__init__(*args, **kwargs)
+
+#     def decode(self, predictions, relative, k=100):
+#         return decode(XModelType.TTFNET, predictions[0], predictions[1], predictions[2], k=k, relative=relative)
+
+#     def get_loss_funcs(self):
+#         return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss, "solo_loss": solo_loss}
 
 
 class XCustomLossContainer(object):
@@ -75,6 +87,7 @@ class XCustomLossContainer(object):
 
         for loss, mean in zip(self.losses, self.means):
             res = loss(outputs, training_data, predictions)
+            tf.print(loss, res)
             result.append(res)
             mean.update_state(res)
 

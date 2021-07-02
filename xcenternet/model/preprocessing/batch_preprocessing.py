@@ -188,17 +188,20 @@ class BatchPreprocessing(object):
             )
         else:
             # otherwise we are fittint TTF net
-            heatmap_dense, box_target, reg_weight, _ = tf.numpy_function(
+            heatmap_dense, box_target, reg_weight, _, seg_cate = tf.numpy_function(
                 func=draw_heatmaps_ttf,
                 inp=[heatmap_shape, bboxes, labels, tf.constant(True)], # TODO: IF THIS DOES NOT WORK THEN FALSE
-                Tout=[tf.float32, tf.float32, tf.float32, tf.float32],
+                Tout=[tf.float32, tf.float32, tf.float32, tf.float32, tf.float32],
             )
             heatmap_dense = tf.reshape(heatmap_dense, heatmap_shape)
             box_target = tf.reshape(box_target, [tf.shape(images)[0], heatmap_size, heatmap_size, 4])
             reg_weight = tf.reshape(reg_weight, [tf.shape(images)[0], heatmap_size, heatmap_size, 1])
+            seg_cate = tf.reshape(seg_cate, [tf.shape(images)[0], 24, 24, heatmap_shape[3]])
+
+            # tf.print("SHAPES LOAD", heatmap_dense.shape, seg_cate.shape)
             return (
                 {"input": images},
-                {"heatmap": heatmap_dense, "size": size, "offset": local_offset},
+                {"heatmap": heatmap_dense, "size": size, "offset": local_offset, "seg_cate": seg_cate},
                 {
                     "indices": indices,
                     "mask": mask,

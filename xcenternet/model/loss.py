@@ -32,6 +32,15 @@ def giou_loss(outputs, training_data, predictions):
     return tf.math.multiply_no_nan(value, value_not_nan)
 
 
+def solo_loss(outputs, training_data, predictions):
+    seg_cate = outputs["seg_cate"]
+
+    l_cate = focal_loss_segmentation(seg_cate, predictions[2])
+    # l_mask = solo_mask_loss(outputs["seg_mask"][0], predictions[3])
+    total_loss = l_cate #+ l_mask
+    return total_loss
+
+
 @tf.function
 def compute_giou_loss(box_target, wh_weight, pred_wh, mode="diou", reduce="sum"):
     """
@@ -194,3 +203,25 @@ def _giou_loss(b1, b2, mode):
         return 1.0 - giou
     else:
         raise ValueError("Value of mode should be one of ['iou','giou','diou']")
+
+
+def dice_loss(y_true, y_pred, keepdims=True):
+    pq = tf.math.reduce_sum(tf.math.multiply(y_pred, y_true), axis=[1,2], keepdims=keepdims)
+    p2 = tf.math.reduce_sum(tf.math.multiply(y_pred, y_pred), axis=[1,2], keepdims=keepdims)
+    q2 = tf.math.reduce_sum(tf.math.multiply(y_true, y_true), axis=[1,2], keepdims=keepdims)
+    return 1 - 2 * pq / (p2 + q2)   # shape (B, 1, 1, S^2) if keepdims else (B, S^2)
+
+def focal_loss_segmentation(y_true, y_pred):
+    epsilon, alpha, gamma = 1e-7, 0.25, 2.0
+    y_pred = tf.clip_by_value(y_pred, epsilon, 1 - epsilon)
+    loss = -alpha * tf.math.pow(1 - y_pred, gamma) * y_true * tf.math.log(y_pred)
+    return tf.math.reduce_sum(loss)
+
+def solo_mask_loss(y_true, y_pred):
+    d_mask = dice_loss(y_true, y_pred)                                     # shape (B, x, x, S^2)
+    d_mask = tf.math.reduce_mean(d_mask, axis=[1,2])                            # shape (B, S^2)
+    indicator = tf.cast(tf.math.reduce_sum(y_true, axis=[1,2]) > 0, tf.float32)
+    n_pos = tf.math.reduce_sum(indicator, axis=1)
+    n_pos = tf.math.maximum(n_pos, tf.ones(n_pos.shape, dtype=tf.float32))      # shape (B,), prevent divided by 0
+    loss = tf.math.reduce_sum(indicator * d_mask, axis=1) / n_pos               # shape (B,)
+    return 3.0 * loss
