@@ -3,15 +3,15 @@ import tensorflow as tf
 
 from xcenternet.model.backbone.efficientnet import create_efficientnetb0
 from xcenternet.model.backbone.resnet import create_resnet, create_resnet_18
-from xcenternet.model.centernet import XCenternetModel, XTTFModel
+from xcenternet.model.centernet import XCenternetModel, XTTFModel, XTTFSOLOModel
 from xcenternet.model.config import XModelType, XModelBackbone, XModelMode
-from xcenternet.model.constants import L2_REG, ACTIVATION, KERNEL_INIT
+from xcenternet.model.constants import L2_REG, ACTIVATION, KERNEL_INIT, SOLO_GRID_SIZE
 from xcenternet.model.layers import BatchNormalization, coord_conv
 
 CREATE_MODELS = {
-    XModelBackbone.RESNET18: lambda w, h, pretrained, mode: create_resnet_18(w, h, pretrained, mode),
-    XModelBackbone.RESNET50: lambda w, h, pretrained, mode: create_resnet(w, h, pretrained, mode),
-    XModelBackbone.EFFICIENTNETB0: lambda w, h, pretrained, mode: create_efficientnetb0(w, h, pretrained, mode),
+    XModelBackbone.RESNET18: lambda w, h, pretrained, mode, mtype: create_resnet_18(w, h, pretrained, mode, mtype),
+    XModelBackbone.RESNET50: lambda w, h, pretrained, mode, mtype: create_resnet(w, h, pretrained, mode, mtype),
+    XModelBackbone.EFFICIENTNETB0: lambda w, h, pretrained, mode, mtype: create_efficientnetb0(w, h, pretrained, mode, mtype),
 }
 
 
@@ -31,7 +31,7 @@ def create_model(
     :param backbone: backbone to be used for creating a new model (pre-trained if available)
     :return: new model (XCenternetModel)
     """
-    input, features = _create_backbone(image_size, pretrained_backbone, backbone=backbone, mode=mode)
+    input, features = _create_backbone(image_size, pretrained_backbone, backbone=backbone, mode=mode, model_type=model_type)
     return _finish_model(labels, input, features, model_type)
 
 
@@ -93,12 +93,16 @@ def _layers_to_reset(model):
     return result
 
 
-def _create_backbone(image_size, pretrained: bool, backbone: XModelBackbone, mode: XModelMode):
+def _create_backbone(image_size, pretrained: bool, backbone: XModelBackbone, mode: XModelMode, model_type: XModelType):
+    print("Creating backbone ...", backbone)
+    print("Creating backbone mode ...", mode)
+    print("Creating model_type", model_type)
+
     # get backbone model
     if backbone not in CREATE_MODELS:
         raise Exception(f"Model {backbone} does not exist!")
 
-    _, input, features = CREATE_MODELS[backbone](image_size, image_size, pretrained, mode)
+    _, input, features = CREATE_MODELS[backbone](image_size, image_size, pretrained, mode, model_type)
     return input, features
 
 
@@ -110,10 +114,70 @@ def _load_backbone(model_path, feature_layer="features"):
     return input, features
 
 
+def _solo_heads(features, labels):
+    outputs = []
+
+    # category branch
+    with tf.name_scope("segmentation_category"):
+        seg_cate_conv = tf.image.resize(features, [SOLO_GRID_SIZE, SOLO_GRID_SIZE])
+        for i in range(4):
+            activation = "sigmoid" if i == 3 else "relu"
+            out_filters = labels if i == 3 else 128
+            padding = "same"
+            kernel = (3, 3)
+            seg_cate_conv = tf.keras.layers.Conv2D(
+                out_filters,
+                kernel, 
+                1,
+                padding=padding,
+                kernel_initializer=KERNEL_INIT,
+                activation=activation,
+                name="segcat_"+str(i)
+            )(seg_cate_conv)
+
+        mask_features = features
+        for filters in [128, 64]:
+            mask_features = tf.keras.layers.Conv2D(
+                filters,
+                (3, 3), 
+                1,
+                padding="same",
+                kernel_initializer=KERNEL_INIT,
+                activation="relu",
+                name="segcat_"+str(filters)
+            )(mask_features)
+
+        for name in ["x", "y"]:
+            conv_output = tf.keras.layers.Conv2D(
+                SOLO_GRID_SIZE,
+                (3, 3), 
+                1,
+                padding="same",
+                kernel_initializer=KERNEL_INIT,
+                activation="relu",
+                name="seg_mask_"+name
+            )(mask_features)
+
+            conv_output_xy = tf.keras.layers.Conv2D(
+                SOLO_GRID_SIZE,
+                (3, 3), 
+                1,
+                padding="same",
+                kernel_initializer=KERNEL_INIT,
+                activation="sigmoid",
+                name="seg_mask_output_"+name
+            )(conv_output)
+            outputs.append(conv_output_xy)
+
+        return seg_cate_conv, outputs[0], outputs[1]
+
+
 def _finish_model(labels: int, input, features, model_type: XModelType):
     outputs = []
 
-    features = coord_conv(features, with_r=True)
+    # ADD coord convolutions for some model
+    if model_type in [XModelType.TTFNET_COORD, XModelType.TTFNET_SOLO]:
+        features = coord_conv(features, with_r=True)
 
     # output layers
     with tf.name_scope("heatmap"):
@@ -191,26 +255,12 @@ def _finish_model(labels: int, input, features, model_type: XModelType):
         outputs.append(output_local_offset)
         return XCenternetModel(inputs=input, outputs=outputs, name=model_type.name.lower())
 
-    # SEGMENTATION
-
-    # category branch
-    with tf.name_scope("segmentation_category"):
-        seg_cate_conv = tf.image.resize(features, [24, 24])
-        for i in range(4):
-            activation = "sigmoid" if i == 3 else "relu"
-            out_filters = labels if i == 3 else 128
-            padding = "same" #"valid" if i == 3 else "same"
-            kernel = (3, 3) #(1, 1) if i == 3 else (3, 3)
-            seg_cate_conv = tf.keras.layers.Conv2D(
-                out_filters,
-                kernel, 
-                1,
-                padding=padding,
-                kernel_initializer=tf.keras.initializers.RandomNormal(0.001),
-                activation=activation,
-                name="segcat_"+str(i)
-            )(seg_cate_conv)
-
-        outputs.append(seg_cate_conv)
+    # Instance Segmentation Decoupled SOLO Architecture
+    if model_type == XModelType.TTFNET_SOLO:
+        category_b, mask_x, mask_y = _solo_heads(features, labels)
+        outputs.append(category_b)
+        outputs.append(mask_x)
+        outputs.append(mask_y)
+        return XTTFSOLOModel(inputs=input, outputs=outputs, name=model_type.name.lower())
 
     return XTTFModel(inputs=input, outputs=outputs, name=model_type.name.lower())

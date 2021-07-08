@@ -6,6 +6,7 @@ from tf_image.core.resize import random_resize
 from xcenternet.model.config import ModelConfig, XModelType
 from xcenternet.model.encoder import draw_heatmaps, draw_heatmaps_ttf
 from xcenternet.model.preprocessing.augmentations import Augmentation
+from xcenternet.model.constants import SOLO_GRID_SIZE
 
 
 class BatchPreprocessing(object):
@@ -188,20 +189,20 @@ class BatchPreprocessing(object):
             )
         else:
             # otherwise we are fittint TTF net
-            heatmap_dense, box_target, reg_weight, _, seg_cate = tf.numpy_function(
+            heatmap_dense, box_target, reg_weight, off, seg_cate, seg_mask = tf.numpy_function(
                 func=draw_heatmaps_ttf,
-                inp=[heatmap_shape, bboxes, labels, tf.constant(True)], # TODO: IF THIS DOES NOT WORK THEN FALSE
-                Tout=[tf.float32, tf.float32, tf.float32, tf.float32, tf.float32],
+                inp=[heatmap_shape, bboxes, labels, tf.constant(True), tf.constant(False)],
+                Tout=[tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32],
             )
             heatmap_dense = tf.reshape(heatmap_dense, heatmap_shape)
             box_target = tf.reshape(box_target, [tf.shape(images)[0], heatmap_size, heatmap_size, 4])
             reg_weight = tf.reshape(reg_weight, [tf.shape(images)[0], heatmap_size, heatmap_size, 1])
-            seg_cate = tf.reshape(seg_cate, [tf.shape(images)[0], 24, 24, heatmap_shape[3]])
+            seg_cate = tf.reshape(seg_cate, [tf.shape(images)[0], SOLO_GRID_SIZE, SOLO_GRID_SIZE, heatmap_shape[3]])
+            seg_mask = tf.reshape(seg_mask, [tf.shape(images)[0], heatmap_size, heatmap_size, SOLO_GRID_SIZE * SOLO_GRID_SIZE])
 
-            # tf.print("SHAPES LOAD", heatmap_dense.shape, seg_cate.shape)
             return (
                 {"input": images},
-                {"heatmap": heatmap_dense, "size": size, "offset": local_offset, "seg_cate": seg_cate},
+                {"heatmap": heatmap_dense, "size": size, "offset": local_offset, "seg_cate": seg_cate, "seg_mask": seg_mask},
                 {
                     "indices": indices,
                     "mask": mask,

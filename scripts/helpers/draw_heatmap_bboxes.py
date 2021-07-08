@@ -29,7 +29,7 @@ if args.ttf_version:
 else:
     heatmap = draw_heatmaps(heatmap_shape, args.bboxes, args.labels)[0]
 
-print(seg_map[:, :, :, 0])
+# print(seg_map[:, :, :, 0])
 heatmap_dense = tf.constant(heatmap)
 heatmap_dense = tf.image.grayscale_to_rgb(tf.expand_dims(tf.clip_by_value(tf.math.reduce_sum(heatmap_dense, 2), 0.0, 1.0), 2))
 heatmap_dense = heatmap_dense * 255

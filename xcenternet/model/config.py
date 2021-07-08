@@ -14,6 +14,8 @@ class XModelBackbone(Enum):
 class XModelType(Enum):
     CENTERNET = auto()
     TTFNET = auto()
+    TTFNET_COORD = auto() # ttfnet with coord convolutions
+    TTFNET_SOLO = auto()  # ttfnet with SOLO (instance segmentation)
 
     def __repr__(self):
         return f"{self.__class__.__name__}.{self.name}"

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from xcenternet.model.config import XModelMode
+from xcenternet.model.config import XModelMode, XModelType
 from xcenternet.model.layers import (
     deConv2DBatchNorm,
     conv2DBatchNorm,
@@ -12,13 +12,14 @@ from xcenternet.model.layers import (
 )
 
 
-def upsample(base_model, x, layers, mode: XModelMode):
+def upsample(base_model, x, layers, mode: XModelMode, model_type: XModelType):
     """
     Feature extraction upsampling/generation before regression and heatmap heads.
     :param base_model: tf.keras.Model object
     :param x: output from last layer of base_model 
     :param layers: layer names from backbone
     :param mode: upsampling mode for features
+    :param model_type: what is the model type (Centernet, TTF, ...)
     :return: base_model and features
     """
     with tf.name_scope("upsample"):
@@ -33,7 +34,8 @@ def upsample(base_model, x, layers, mode: XModelMode):
         c3 = tf.keras.layers.Dropout(rate=0.3)(c3)
         c2 = tf.keras.layers.Dropout(rate=0.2)(c2)
 
-        c5 = coord_conv(c5, with_r=True)
+        if model_type in [XModelType.TTFNET_COORD, XModelType.TTFNET_SOLO]:
+            c5 = coord_conv(c5, with_r=True)
 
         # You can create your own upsample layer for example FPN
         # if you need here, you need to also add this mode to the XmodelMode enum
