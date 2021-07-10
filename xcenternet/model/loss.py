@@ -36,8 +36,9 @@ def solo_loss(outputs, training_data, predictions):
     seg_cate = outputs["seg_cate"]
 
     l_cate = focal_loss_segmentation(seg_cate, predictions[2])
-    raise NotImplementedError # todo finish next lines
-    # l_mask = solo_mask_loss(outputs["seg_mask"][0], predictions[3])
+    # tf.print(predictions[3].shape)
+    # tf.print(predictions[4].shape)
+    # l_mask = solo_mask_loss(outputs["seg_mask"][0], predictions[3],)
     total_loss = l_cate #+ l_mask
     return total_loss
 

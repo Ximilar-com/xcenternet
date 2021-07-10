@@ -48,7 +48,7 @@ def decode(model_type: XModelType, heat, wh, reg=None, k=100, relative=False):
         xmin = xs - wh[..., 1:2] / 2
         ymax = ys + wh[..., 0:1] / 2
         xmax = xs + wh[..., 1:2] / 2
-    elif model_type == XModelType.TTFNET:
+    elif model_type in [XModelType.TTFNET, XModelType.TTFNET_COORD]:
         ymin = ys - wh[..., 0:1]
         xmin = xs - wh[..., 1:2]
         ymax = ys + wh[..., 2:3]

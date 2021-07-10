@@ -200,6 +200,7 @@ class BatchPreprocessing(object):
             seg_cate = tf.reshape(seg_cate, [tf.shape(images)[0], SOLO_GRID_SIZE, SOLO_GRID_SIZE, heatmap_shape[3]])
             seg_mask = tf.reshape(seg_mask, [tf.shape(images)[0], heatmap_size, heatmap_size, SOLO_GRID_SIZE * SOLO_GRID_SIZE])
 
+            print(seg_cate.shape, seg_mask.shape)
             return (
                 {"input": images},
                 {"heatmap": heatmap_dense, "size": size, "offset": local_offset, "seg_cate": seg_cate, "seg_mask": seg_mask},

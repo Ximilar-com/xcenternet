@@ -97,6 +97,7 @@ def _create_backbone(image_size, pretrained: bool, backbone: XModelBackbone, mod
     print("Creating backbone ...", backbone)
     print("Creating backbone mode ...", mode)
     print("Creating model_type", model_type)
+    print("-------------------")
 
     # get backbone model
     if backbone not in CREATE_MODELS:
@@ -149,7 +150,7 @@ def _solo_heads(features, labels):
 
         for name in ["x", "y"]:
             conv_output = tf.keras.layers.Conv2D(
-                SOLO_GRID_SIZE,
+                64,
                 (3, 3), 
                 1,
                 padding="same",
@@ -261,6 +262,8 @@ def _finish_model(labels: int, input, features, model_type: XModelType):
         outputs.append(category_b)
         outputs.append(mask_x)
         outputs.append(mask_y)
+
+        print("OUTPUTS", len(outputs), category_b, mask_x, mask_y)
         return XTTFSOLOModel(inputs=input, outputs=outputs, name=model_type.name.lower())
 
     return XTTFModel(inputs=input, outputs=outputs, name=model_type.name.lower())

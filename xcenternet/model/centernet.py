@@ -68,7 +68,8 @@ class XTTFSOLOModel(XCenternetModel):
         super().__init__(*args, **kwargs)
 
     def decode(self, predictions, relative, k=100):
-        return decode(XModelType.TTFNET, predictions[0], predictions[1], predictions[2], k=k, relative=relative)
+        # TODO:
+        return decode(XModelType.TTFNET, predictions[0], predictions[1], k=k, relative=relative)
 
     def get_loss_funcs(self):
         return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss, "solo_loss": solo_loss}
