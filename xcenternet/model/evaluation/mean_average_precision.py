@@ -83,15 +83,24 @@ class MAP(object):
 
     def result(self):
         average_precisions = {}
+        details_per_class = {}
         for label in range(self.classes):
             false_positives_label = np.array(self.false_positives[label])
             true_positives_label = np.array(self.true_positives[label])
             scores_label = np.array(self.scores[label])
             num_annotations_label = self.num_annotations[label]
 
-            # no annotations -> AP for this class is 0 (is this correct?)
+            # no annotations
+            # (we use "non_empty_classes" for the average calculation, no annotation classes are taken into account)
             if num_annotations_label == 0:
                 average_precisions[label] = 0, 0
+                details_per_class[label] = {}
+                continue
+
+            # no annotations or no positive ones, we set average precision to be 0 for this class
+            if (len(false_positives_label) + len(true_positives_label)) == 0:
+                average_precisions[label] = 0, num_annotations_label
+                details_per_class[label] = {"recall": 0}
                 continue
 
             # sort by score
@@ -113,6 +122,8 @@ class MAP(object):
             average_precision = self._compute_ap(recall, precision)
             average_precisions[label] = average_precision, num_annotations_label
 
+            details_per_class[label] = {"recall": recall[-1], "precision": precision[-1]}
+
         annotations = sum([class_stats[1] for _, class_stats in average_precisions.items()])
         weighted = (
             sum([class_stats[0] * class_stats[1] for _, class_stats in average_precisions.items()]) / annotations
@@ -127,7 +138,12 @@ class MAP(object):
             else 0
         )
 
-        return {"overall": overall, "weighted": weighted, "per_class": average_precisions}
+        return {
+            "overall": overall,
+            "weighted": weighted,
+            "per_class": average_precisions,
+            "details": {"per_class": details_per_class},
+        }
 
     def _evaluate_batch(self, annotations_batch, detections_batch, class_num, iou_threshold):
         # process detections and annotations
@@ -159,7 +175,7 @@ class MAP(object):
                         self.true_positives[label].append(0)
 
     def _compute_ap(self, recall, precision):
-        """ Compute the average precision, given the recall and precision curves.
+        """Compute the average precision, given the recall and precision curves.
         Code originally from https://github.com/rbgirshick/py-faster-rcnn.
         # Arguments
             recall:    The recall curve (list).
@@ -204,7 +220,7 @@ class MAP(object):
         return selected_boxes, selected_scores, selected_labels
 
     def _get_batch_detections(self, result, class_num, score_threshold):
-        """ Get the detections from the model using the generator.
+        """Get the detections from the model using the generator.
         The result is a list of lists such that the size is:
             all_detections[num_images][num_classes] = detections[num_detections, 4 + num_classes]
         # Arguments
@@ -237,14 +253,14 @@ class MAP(object):
         return detections
 
     def _get_batch_annotations(self, mask, bboxes, labels, class_num):
-        """ Get the ground truth annotations from the generator.
-            The result is a list of lists such that the size is:
-                all_detections[num_images][num_classes] = annotations[num_detections, 5]
-            # Arguments
-            # Returns
-                A list of lists containing the annotations for each image in the generator.
-                Bounding boxes are in heatmap coordinates. (As present in the preprocessed dataset and predictions.)
-            """
+        """Get the ground truth annotations from the generator.
+        The result is a list of lists such that the size is:
+            all_detections[num_images][num_classes] = annotations[num_detections, 5]
+        # Arguments
+        # Returns
+            A list of lists containing the annotations for each image in the generator.
+            Bounding boxes are in heatmap coordinates. (As present in the preprocessed dataset and predictions.)
+        """
         mask, bboxes, labels = mask.numpy(), bboxes.numpy(), labels.numpy()
         mask = mask.astype(dtype=np.bool)
         bboxes = bboxes.astype(dtype=np.float64)
