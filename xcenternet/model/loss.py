@@ -36,10 +36,20 @@ def solo_loss(outputs, training_data, predictions):
     seg_cate = outputs["seg_cate"]
 
     l_cate = focal_loss_segmentation(seg_cate, predictions[2])
-    # tf.print(predictions[3].shape)
-    # tf.print(predictions[4].shape)
-    # l_mask = solo_mask_loss(outputs["seg_mask"][0], predictions[3],)
-    total_loss = l_cate #+ l_mask
+
+    # mask_preds = tf.zeros((predictions[3].shape[0], predictions[3].shape[1], predictions[3].shape[2], predictions[3].shape[3]*predictions[3].shape[3]))
+
+    mask_preds = []
+    for i in range(24):
+        for j in range(24):
+            mask_pred = tf.multiply(predictions[3][:,:,:,i], predictions[4][:,:,:,j]) #predictions[3][:,:,:,i], predictions[4][:,:,:,j]) # [:,:,:, (i*j)+j]
+            mask_preds.append(mask_pred)
+
+    # mask_preds = tf.constant(mask_preds) 
+    # tf.print(outputs["seg_mask"].shape, predictions[3].shape, predictions[4].shape, mask_preds.shape)
+    # l_mask = tf.reduce_sum(predictions[3]) + tf.reduce_sum(predictions[4])
+    l_mask = solo_mask_loss(outputs["seg_mask"], mask_preds)
+    total_loss = l_cate + l_mask
     return total_loss
 
 

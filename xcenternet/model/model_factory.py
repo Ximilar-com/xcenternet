@@ -263,7 +263,6 @@ def _finish_model(labels: int, input, features, model_type: XModelType):
         outputs.append(mask_x)
         outputs.append(mask_y)
 
-        print("OUTPUTS", len(outputs), category_b, mask_x, mask_y)
         return XTTFSOLOModel(inputs=input, outputs=outputs, name=model_type.name.lower())
 
     return XTTFModel(inputs=input, outputs=outputs, name=model_type.name.lower())
