@@ -23,7 +23,7 @@ kiwisolver==1.2.0         # via matplotlib
 matplotlib==3.2.1         # via -r requirements.in, imgaug, scikit-image
 networkx==2.4             # via scikit-image
 numpy==1.18.3             # via h5py, imageio, imgaug, keras-applications, matplotlib, opencv-python, pywavelets, scipy, tensorflow-datasets
-opencv-python==4.2.0.34   # via imgaug
+opencv-python==4.5.1.48   # via imgaug
 pillow==7.1.2             # via imageio, imgaug, scikit-image
 progressbar2==3.51.0      # via -r requirements.in
 promise==2.3              # via tensorflow-datasets
