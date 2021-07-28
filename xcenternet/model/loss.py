@@ -1,4 +1,5 @@
 import tensorflow as tf
+from xcenternet.model.constants import SOLO_GRID_SIZE
 
 
 def heatmap_focal_loss(outputs, training_data, predictions):
@@ -32,25 +33,36 @@ def giou_loss(outputs, training_data, predictions):
     return tf.math.multiply_no_nan(value, value_not_nan)
 
 
-def solo_loss(outputs, training_data, predictions):
+@tf.function
+def outerprodflatten(x, y, channel_dims):
+    """
+    According to StackOverflow:
+    https://stackoverflow.com/questions/68361071/multiply-outputs-from-two-conv2d-layers-in-tensorflow-2
+    """
+    return tf.repeat(x,channel_dims,-1)*tf.tile(y,[1,1,1,channel_dims])
+
+
+def solo_loss_cate(outputs, training_data, predictions):
+    """
+    SOLO Decoupled head loss for category branch in TF2.
+    """
     seg_cate = outputs["seg_cate"]
-
     l_cate = focal_loss_segmentation(seg_cate, predictions[2])
+    return l_cate
 
-    # mask_preds = tf.zeros((predictions[3].shape[0], predictions[3].shape[1], predictions[3].shape[2], predictions[3].shape[3]*predictions[3].shape[3]))
 
-    mask_preds = []
-    for i in range(24):
-        for j in range(24):
-            mask_pred = tf.multiply(predictions[3][:,:,:,i], predictions[4][:,:,:,j]) #predictions[3][:,:,:,i], predictions[4][:,:,:,j]) # [:,:,:, (i*j)+j]
-            mask_preds.append(mask_pred)
+def solo_loss_mask(outputs, training_data, predictions):
+    """
+    SOLO Decoupled head loss for two mask branches in TF2.
+    """
+    seg_mask = outputs["seg_mask"]
 
-    # mask_preds = tf.constant(mask_preds) 
-    # tf.print(outputs["seg_mask"].shape, predictions[3].shape, predictions[4].shape, mask_preds.shape)
-    # l_mask = tf.reduce_sum(predictions[3]) + tf.reduce_sum(predictions[4])
-    l_mask = solo_mask_loss(outputs["seg_mask"], mask_preds)
-    total_loss = l_cate + l_mask
-    return total_loss
+    # from decoupled head 2x(b, size, size, 24) to (b, size, size, 24*24)
+    mask_preds = outerprodflatten(predictions[3], predictions[4], SOLO_GRID_SIZE)
+
+    # now segmentation mask loss
+    l_mask = solo_mask_loss(seg_mask, mask_preds)
+    return tf.reduce_sum(l_mask)
 
 
 @tf.function
@@ -223,17 +235,21 @@ def dice_loss(y_true, y_pred, keepdims=True):
     q2 = tf.math.reduce_sum(tf.math.multiply(y_true, y_true), axis=[1,2], keepdims=keepdims)
     return 1 - 2 * pq / (p2 + q2)   # shape (B, 1, 1, S^2) if keepdims else (B, S^2)
 
+
 def focal_loss_segmentation(y_true, y_pred):
     epsilon, alpha, gamma = 1e-7, 0.25, 2.0
     y_pred = tf.clip_by_value(y_pred, epsilon, 1 - epsilon)
     loss = -alpha * tf.math.pow(1 - y_pred, gamma) * y_true * tf.math.log(y_pred)
     return tf.math.reduce_sum(loss)
 
+
 def solo_mask_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
     d_mask = dice_loss(y_true, y_pred)                                     # shape (B, x, x, S^2)
     d_mask = tf.math.reduce_mean(d_mask, axis=[1,2])                            # shape (B, S^2)
     indicator = tf.cast(tf.math.reduce_sum(y_true, axis=[1,2]) > 0, tf.float32)
     n_pos = tf.math.reduce_sum(indicator, axis=1)
-    n_pos = tf.math.maximum(n_pos, tf.ones(n_pos.shape, dtype=tf.float32))      # shape (B,), prevent divided by 0
+    n_pos = tf.math.maximum(n_pos, tf.ones_like(n_pos, dtype=tf.float32)) # n_pos.shape, dtype=tf.float32))      # shape (B,), prevent divided by 0
     loss = tf.math.reduce_sum(indicator * d_mask, axis=1) / n_pos               # shape (B,)
     return 3.0 * loss

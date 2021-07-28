@@ -7,7 +7,8 @@ from xcenternet.datasets.dataset import Dataset
 
 
 class CustomDataset(Dataset):
-    def __init__(self, dataset_path_tr, dataset_path_te, init_lr):
+    def __init__(self, dataset_path_tr, dataset_path_te, init_lr, dataset_prefix):
+        self.dataset_prefix = dataset_prefix
         self.records_train, self.labels = self.load_file(dataset_path_tr)
         self.records_validation, _ = self.load_file(dataset_path_te)
 
@@ -37,13 +38,16 @@ class CustomDataset(Dataset):
 
     def load_records(self, images, annotations):
         records = {
-            image["id"]: {"image_id": image["id"], "bboxes": [], "labels": [], "file_name": image["file_name"]}
+            image["id"]: {"image_id": image["id"], "bboxes": [], "labels": [], "file_name": self.dataset_prefix + image["file_name"], "segmentations": []}
             for image in images
         }
 
+        print(self.dataset_prefix + images[0]["file_name"])
+        print("LOAD")
         for annotation in annotations:
             records[annotation["image_id"]]["bboxes"].append(annotation["bbox"])
             records[annotation["image_id"]]["labels"].append(annotation["category_id"])
+            #records[annotation["image_id"]]["segmentations"].append(annotation["segmentation"])
 
         return list(records.values())
 
@@ -60,10 +64,11 @@ class CustomDataset(Dataset):
                     "file_name": record["file_name"],
                     "labels": [self.labels[label] for label in record["labels"]],
                     "bboxes": bboxes,
+                    #"segmentations": record["segmentations"]
                 }
 
-        output_types = {"image_id": tf.int32, "file_name": tf.string, "labels": tf.float32, "bboxes": tf.float32}
-        output_shapes = {"file_name": (), "labels": (None,), "bboxes": (None, 4), "image_id": ()}
+        output_types = {"image_id": tf.int32, "file_name": tf.string, "labels": tf.float32, "bboxes": tf.float32} #, "segmentations": tf.float32}
+        output_shapes = {"file_name": (), "labels": (None,), "bboxes": (None, 4), "image_id": ()} #, "segmentations": (None, None,)}
 
         return tf.data.Dataset.from_generator(gen, output_types=output_types, output_shapes=output_shapes)
 
@@ -77,12 +82,13 @@ class CustomDataset(Dataset):
         image = self._load_image(record)
         labels = record["labels"]
         bboxes = record["bboxes"]
+        # segmentations = record["segmentations"]
         image_id = record["image_id"]
 
         h, w = tf.cast(tf.shape(image)[0], tf.float32), tf.cast(tf.shape(image)[1], tf.float32)
         bboxes /= tf.stack([h, w, h, w])
 
-        return image, labels, bboxes, image_id
+        return image, labels, bboxes, image_id #[] #segmentations
 
     def scheduler(self, epoch):
         if epoch < 40:

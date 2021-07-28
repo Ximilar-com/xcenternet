@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from xcenternet.model.config import XModelType
 from xcenternet.model.decoder import decode
-from xcenternet.model.loss import offset_l1_loss, size_l1_loss, heatmap_focal_loss, giou_loss, solo_loss
+from xcenternet.model.loss import offset_l1_loss, size_l1_loss, heatmap_focal_loss, giou_loss, solo_loss_cate, solo_loss_mask
 
 
 class XCenternetModel(tf.keras.Model):
@@ -72,7 +72,7 @@ class XTTFSOLOModel(XCenternetModel):
         return decode(XModelType.TTFNET, predictions[0], predictions[1], k=k, relative=relative)
 
     def get_loss_funcs(self):
-        return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss, "solo_loss": solo_loss}
+        return {"loss_heatmap": heatmap_focal_loss, "loss_giou": giou_loss, "solo_loss_cate": solo_loss_cate, "solo_loss_mask": solo_loss_mask}
 
 
 class XCustomLossContainer(object):
