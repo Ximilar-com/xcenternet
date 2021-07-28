@@ -112,14 +112,15 @@ dataset_validation = (
     .prefetch(args.prefetch)
 )
 
-strategy = tf.distribute.MirroredStrategy()
-print("Number of gpu devices: {}".format(strategy.num_replicas_in_sync))
+#strategy = tf.distribute.MirroredStrategy()
+# print("Number of gpu devices: {}".format(strategy.num_replicas_in_sync))
 
-with strategy.scope():
-    if args.pretrained:
+#with strategy.scope():
+model = None
+if args.pretrained:
         print("Loading a pretrained model, creating new output layers.")
         model = load_and_update_model(args.pretrained, model_config.labels, model_type)
-    else:
+else:
         print("Creating a new model.")
         model = create_model(
             None,
@@ -134,11 +135,11 @@ with strategy.scope():
             # when finetuning right now only with .h5 format, there is some bug when loading from saved_model format
             load_pretrained_weights(model, args.pretrained_weights)
 
-    if args.load_weights:
+if args.load_weights:
         model.load_weights(args.load_weights)
 
-    model.compile(optimizer=optimizer, loss=model.get_loss_funcs())
-    model.summary()
+model.compile(optimizer=optimizer, loss=model.get_loss_funcs())
+model.summary()
 
 # we need to save right now just weights
 model_checkpoint = tf.keras.callbacks.ModelCheckpoint(

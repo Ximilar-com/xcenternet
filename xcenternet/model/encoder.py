@@ -152,11 +152,13 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
 
     # go over batch of images
     for b in range(shape[0]):
+        # print("SHABE b", b, bboxes[b])
         centers = []
 
         # sort the boxes by the area from max to min
         areas = np.asarray([bbox_areas_log_np(np.asarray(bbox)) for bbox in bboxes[b]])
         indices = np.argsort(-areas)
+        # print(indices)
 
         bboxes_new = bboxes[b][indices]
         labels_new = labels[b][indices]
@@ -237,6 +239,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
                 ),
                 dtype=tf.int32
             )
+            # print("SC", seg_centers)
             cat = tf.scatter_nd(seg_centers, 
                 [cls_id + 1 for center, cls_id in zip(centers, labels_new) if center["skip"] == False],
                 cat_shape
@@ -249,7 +252,8 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
             # todo: just finish this
             ks = tf.constant([[SOLO_GRID_SIZE * int(center[0]) + int(center[1])] for center in seg_centers_tmp], dtype=tf.int32)
             mask_shape = tf.concat([[SOLO_GRID_SIZE*SOLO_GRID_SIZE], [shape[2]], [shape[1]]], 0)
-            instance_masks = [np.ones((shape[1], shape[2]), dtype=np.int32) for i in range(len(seg_centers_tmp))]
+            instance_masks = tf.constant([np.ones((shape[1], shape[2]), dtype=np.int32) for i in range(len(seg_centers_tmp))])
+            # print("KS", ks.shape, instance_masks.shape, mask_shape)
             mask = tf.scatter_nd(ks, instance_masks, mask_shape)
             mask = tf.transpose(mask, perm=[1,2,0]) # shape (W, H, S^2)
             seg_mask[b] = mask.numpy()

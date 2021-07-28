@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 import json
 import tensorflow as tf
 
@@ -47,7 +48,7 @@ class CustomDataset(Dataset):
         for annotation in annotations:
             records[annotation["image_id"]]["bboxes"].append(annotation["bbox"])
             records[annotation["image_id"]]["labels"].append(annotation["category_id"])
-            #records[annotation["image_id"]]["segmentations"].append(annotation["segmentation"])
+            records[annotation["image_id"]]["segmentations"].append(annotation["segmentation"])
 
         return list(records.values())
 
@@ -59,18 +60,25 @@ class CustomDataset(Dataset):
                     [float(bbox[1]), float(bbox[0]), float(bbox[1]) + float(bbox[3]), float(bbox[0]) + float(bbox[2])]
                     for bbox in bboxes
                 ]
-                yield {
-                    "image_id": int(record["image_id"]),
-                    "file_name": record["file_name"],
-                    "labels": [self.labels[label] for label in record["labels"]],
-                    "bboxes": bboxes,
-                    #"segmentations": record["segmentations"]
-                }
+                # yield {
+                #     "image_id": int(record["image_id"]),
+                #     "file_name": record["file_name"],
+                #     "labels": [self.labels[label] for label in record["labels"]],
+                #     "bboxes": bboxes,
+                #     "segmentations": tf.ragged.constant(record["segmentations"], dtype=tf.float32)
+                # }
+                yield int(record["image_id"]), record["file_name"], [self.labels[label] for label in record["labels"]], bboxes, tf.ragged.constant(record["segmentations"], dtype=tf.float32)
 
-        output_types = {"image_id": tf.int32, "file_name": tf.string, "labels": tf.float32, "bboxes": tf.float32} #, "segmentations": tf.float32}
-        output_shapes = {"file_name": (), "labels": (None,), "bboxes": (None, 4), "image_id": ()} #, "segmentations": (None, None,)}
-
-        return tf.data.Dataset.from_generator(gen, output_types=output_types, output_shapes=output_shapes)
+        # output_types = {"image_id": tf.int32, "file_name": tf.string, "labels": tf.float32, "bboxes": tf.float32, "segmentations": tf.RaggedTensor}
+        # output_shapes = {"file_name": (), "labels": (None,), "bboxes": (None, 4), "image_id": (), "segmentations": (None, None, None)}
+        output_signature = (
+            tf.TensorSpec(shape=(), dtype=tf.int32),
+            tf.TensorSpec(shape=(), dtype=tf.string),
+            tf.TensorSpec(shape=(None,), dtype=tf.float32),
+            tf.TensorSpec(shape=(None,4), dtype=tf.float32),
+            tf.RaggedTensorSpec(shape=(None,None,None), dtype=tf.float32)
+        )
+        return tf.data.Dataset.from_generator(gen, output_signature=output_signature)# output_types=output_types, output_shapes=output_shapes)
 
     def load_train_datasets(self):
         return self._preprocess_record(self.records_train), len(self.records_train)
@@ -78,17 +86,18 @@ class CustomDataset(Dataset):
     def load_validation_datasets(self):
         return self._preprocess_record(self.records_validation), len(self.records_validation)
 
-    def decode(self, record):
-        image = self._load_image(record)
-        labels = record["labels"]
-        bboxes = record["bboxes"]
+    def decode(self, image_id, file_name, labels, bboxes, segmentations): #record):
+        # image = self._load_image(record)
+        # labels = record["labels"]
+        # bboxes = record["bboxes"]
         # segmentations = record["segmentations"]
-        image_id = record["image_id"]
+        # image_id = record["image_id"]
+        image = self._load_image({"file_name": file_name})
 
         h, w = tf.cast(tf.shape(image)[0], tf.float32), tf.cast(tf.shape(image)[1], tf.float32)
         bboxes /= tf.stack([h, w, h, w])
 
-        return image, labels, bboxes, image_id #[] #segmentations
+        return image, labels, bboxes, segmentations, image_id
 
     def scheduler(self, epoch):
         if epoch < 40:
