@@ -166,8 +166,8 @@ mapCallback = MAPValidationCallback(
 )
 
 callbacks = [scheduler_cb, tensorboard, model_checkpoint, mapCallback]
-if not args.no_log_images:
-    callbacks += [image_log, result_log]
+#if not args.no_log_images:
+#    callbacks += [image_log, result_log]
 
 model.fit(
     ds,

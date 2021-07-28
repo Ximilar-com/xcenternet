@@ -113,7 +113,7 @@ class BatchPreprocessing(object):
         labels = tf.pad(labels, tf.stack([[0, padding_add]]))
         labels = tf.cast(labels, dtype=tf.int32)
 
-        return image, bboxes, labels, mask, image_id, height, width, []
+        return image, bboxes, labels, mask, image_id, height, width #, segmentations
 
     @tf.function
     def resize_train(self, image, bboxes, max_size, prob=0.5):
@@ -126,7 +126,7 @@ class BatchPreprocessing(object):
         return image, bboxes
 
     @tf.function
-    def preprocess_batch(self, images, bboxes, labels, mask, image_ids, heights, widths, segmentations):
+    def preprocess_batch(self, images, bboxes, labels, mask, image_ids, heights, widths):
         """
         We have the all the inputs in batches, uniformly sized.
         Images/bounding boxes are augmented if this was required.

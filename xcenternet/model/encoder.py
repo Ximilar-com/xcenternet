@@ -230,6 +230,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
 
         if segmentation:
+            # print(segmentations)
             # segmentation categories map for solo
             cat_shape = tf.squeeze(tf.constant([SOLO_GRID_SIZE, SOLO_GRID_SIZE]))
             seg_centers_tmp = [[center["center"].astype(np.int32)[0] / shape[1] * SOLO_GRID_SIZE, center["center"].astype(np.int32)[1] / shape[2] * SOLO_GRID_SIZE] for center in centers if center["skip"] == False]
@@ -239,24 +240,26 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
                 ),
                 dtype=tf.int32
             )
-            # print("SC", seg_centers)
-            cat = tf.scatter_nd(seg_centers, 
-                [cls_id + 1 for center, cls_id in zip(centers, labels_new) if center["skip"] == False],
-                cat_shape
-            ) - 1
-            cat = tf.one_hot(cat, shape[3], dtype=tf.float32) # shape (S, S, C)
-            seg_cat[b] = cat.numpy()
+            labels_cls = [cls_id + 1 for center, cls_id in zip(centers, labels_new) if center["skip"] == False]
 
-            # segmenation maps
-            # ! we need to fill actual instance masks
-            # todo: just finish this
-            ks = tf.constant([[SOLO_GRID_SIZE * int(center[0]) + int(center[1])] for center in seg_centers_tmp], dtype=tf.int32)
-            mask_shape = tf.concat([[SOLO_GRID_SIZE*SOLO_GRID_SIZE], [shape[2]], [shape[1]]], 0)
-            instance_masks = tf.constant([np.ones((shape[1], shape[2]), dtype=np.int32) for i in range(len(seg_centers_tmp))])
-            # print("KS", ks.shape, instance_masks.shape, mask_shape)
-            mask = tf.scatter_nd(ks, instance_masks, mask_shape)
-            mask = tf.transpose(mask, perm=[1,2,0]) # shape (W, H, S^2)
-            seg_mask[b] = mask.numpy()
+            # only if we have valid bboxes
+            if len(labels_cls):
+                cat = tf.scatter_nd(seg_centers, 
+                    labels_cls,
+                    cat_shape
+                ) - 1
+                cat = tf.one_hot(cat, shape[3], dtype=tf.float32) # shape (S, S, C)
+                seg_cat[b] = cat.numpy()
+
+                # segmenation maps
+                # ! we need to fill actual instance masks
+                # todo: just finish this
+                ks = tf.constant([[SOLO_GRID_SIZE * int(center[0]) + int(center[1])] for center in seg_centers_tmp], dtype=tf.int32)
+                mask_shape = tf.concat([[SOLO_GRID_SIZE*SOLO_GRID_SIZE], [shape[2]], [shape[1]]], 0)
+                instance_masks = tf.constant([np.ones((shape[1], shape[2]), dtype=np.int32) for i in range(len(seg_centers_tmp))])
+                mask = tf.scatter_nd(ks, instance_masks, mask_shape)
+                mask = tf.transpose(mask, perm=[1,2,0]) # shape (W, H, S^2)
+                seg_mask[b] = mask.numpy()
 
     return heat_map, box_target, reg_weight, box_target_offset, seg_cat, seg_mask
 
