@@ -42,7 +42,7 @@ def outerprodflatten(x, y, channel_dims):
     return tf.repeat(x,channel_dims,-1)*tf.tile(y,[1,1,1,channel_dims])
 
 
-def solo_loss_cate(outputs, training_data, predictions):
+def solo_loss_category(outputs, training_data, predictions):
     """
     SOLO Decoupled head loss for category branch in TF2.
     """

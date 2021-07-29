@@ -2,9 +2,11 @@ import random
 
 import numpy as np
 import json
+import cv2
 import tensorflow as tf
 
 from xcenternet.datasets.dataset import Dataset
+from xcenternet.model.constants import BASE_SEG_MASK_SIZE
 
 
 class CustomDataset(Dataset):
@@ -39,8 +41,15 @@ class CustomDataset(Dataset):
 
     def load_records(self, images, annotations):
         records = {
-            image["id"]: {"image_id": image["id"], "bboxes": [], "labels": [], "file_name": self.dataset_prefix + image["file_name"], "segmentations": []}
-            for image in images
+            image["id"]: {
+                "image_id": image["id"],
+                "bboxes": [],
+                "labels": [],
+                "file_name": self.dataset_prefix + image["file_name"],
+                "segmentations": [],
+                "width": image["width"],
+                "height": image["height"]
+            } for image in images
         }
 
         print(self.dataset_prefix + images[0]["file_name"])
@@ -55,30 +64,28 @@ class CustomDataset(Dataset):
     def _preprocess_record(self, records):
         def gen():
             for record in records:
-                bboxes = record["bboxes"]
                 bboxes = [
                     [float(bbox[1]), float(bbox[0]), float(bbox[1]) + float(bbox[3]), float(bbox[0]) + float(bbox[2])]
-                    for bbox in bboxes
+                    for bbox in record["bboxes"]
                 ]
-                # yield {
-                #     "image_id": int(record["image_id"]),
-                #     "file_name": record["file_name"],
-                #     "labels": [self.labels[label] for label in record["labels"]],
-                #     "bboxes": bboxes,
-                #     "segmentations": tf.ragged.constant(record["segmentations"], dtype=tf.float32)
-                # }
-                yield int(record["image_id"]), record["file_name"], [self.labels[label] for label in record["labels"]], bboxes, tf.ragged.constant(record["segmentations"], dtype=tf.float32)
+                seg_masks = []
+                for segmentations in record["segmentations"]:
+                    mask = np.zeros((BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE))
+                    for segmentation in segmentations:
+                        points = np.asarray([[int((x/record["width"]) * BASE_SEG_MASK_SIZE), int((y/record["height"]) * BASE_SEG_MASK_SIZE)] for x, y in zip(segmentation[::2], list(reversed(segmentation[::-2])))])
+                        cv2.fillPoly(mask, [points], color=(1,1,1))
+                    seg_masks.append(mask.astype(np.float32))
 
-        # output_types = {"image_id": tf.int32, "file_name": tf.string, "labels": tf.float32, "bboxes": tf.float32, "segmentations": tf.RaggedTensor}
-        # output_shapes = {"file_name": (), "labels": (None,), "bboxes": (None, 4), "image_id": (), "segmentations": (None, None, None)}
+                yield int(record["image_id"]), record["file_name"], [self.labels[label] for label in record["labels"]], bboxes, seg_masks
+
         output_signature = (
             tf.TensorSpec(shape=(), dtype=tf.int32),
             tf.TensorSpec(shape=(), dtype=tf.string),
             tf.TensorSpec(shape=(None,), dtype=tf.float32),
             tf.TensorSpec(shape=(None,4), dtype=tf.float32),
-            tf.RaggedTensorSpec(shape=(None,None,None), dtype=tf.float32)
+            tf.TensorSpec(shape=(None, BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE), dtype=tf.float32)
         )
-        return tf.data.Dataset.from_generator(gen, output_signature=output_signature)# output_types=output_types, output_shapes=output_shapes)
+        return tf.data.Dataset.from_generator(gen, output_signature=output_signature)
 
     def load_train_datasets(self):
         return self._preprocess_record(self.records_train), len(self.records_train)
@@ -86,18 +93,13 @@ class CustomDataset(Dataset):
     def load_validation_datasets(self):
         return self._preprocess_record(self.records_validation), len(self.records_validation)
 
-    def decode(self, image_id, file_name, labels, bboxes, segmentations): #record):
-        # image = self._load_image(record)
-        # labels = record["labels"]
-        # bboxes = record["bboxes"]
-        # segmentations = record["segmentations"]
-        # image_id = record["image_id"]
+    def decode(self, image_id, file_name, labels, bboxes, seg_masks):
         image = self._load_image({"file_name": file_name})
 
         h, w = tf.cast(tf.shape(image)[0], tf.float32), tf.cast(tf.shape(image)[1], tf.float32)
         bboxes /= tf.stack([h, w, h, w])
 
-        return image, labels, bboxes, segmentations, image_id
+        return image, labels, bboxes, seg_masks, image_id
 
     def scheduler(self, epoch):
         if epoch < 40:

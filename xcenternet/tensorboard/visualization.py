@@ -66,3 +66,20 @@ def draw_heatmaps(image, heatmaps, config):
 
     image = tf.clip_by_value(image, 0.0, 255.0)
     return image
+
+
+def draw_segmaps(image, segmaps, config):
+    for i in tf.range(tf.shape(segmaps)[-1]):
+        heatmap_image = segmaps[:, :, i]
+        heatmap_image = tf.expand_dims(heatmap_image, -1)
+        heatmap_image = tf.image.grayscale_to_rgb(heatmap_image)
+        heatmap_image = tf.image.resize(heatmap_image, (tf.shape(image)[0], tf.shape(image)[1]))
+
+        # dim the image behind the heatmap a bit
+        image *= 1.0 - tf.clip_by_value(heatmap_image * 1.1, 0.0, 1.0)
+
+        # add the heatmap to the image
+        image += heatmap_image * [255.0, 255.0, 255.0] * 0.75
+
+    image = tf.clip_by_value(image, 0.0, 255.0)
+    return image

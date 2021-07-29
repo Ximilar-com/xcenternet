@@ -16,6 +16,26 @@ class Augmentation(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
+class NoAugmentation(Augmentation):
+    def __init__(self, probability):
+        super().__init__(probability)
+
+        self.augmentation_config = AugmentationConfig()
+        self.augmentation_config.color = ColorAugmentation.NONE
+        self.augmentation_config.crop = False
+        self.augmentation_config.distort_aspect_ratio = AspectRatioAugmentation.NONE
+        self.augmentation_config.quality = False
+        self.augmentation_config.erasing = False
+        self.augmentation_config.rotate90 = False
+        self.augmentation_config.rotate_max = 0
+        self.augmentation_config.flip_vertical = False
+        self.augmentation_config.flip_horizontal = False
+        self.padding_square = False
+
+    def augment(self, image, bboxes):
+        return random_augmentations(image, self.augmentation_config, bboxes=bboxes)
+
+
 class EasyAugmentation(Augmentation):
     def __init__(self, probability):
         super().__init__(probability)

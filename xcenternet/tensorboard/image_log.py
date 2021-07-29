@@ -1,21 +1,22 @@
 import tensorflow as tf
 
-from xcenternet.tensorboard.visualization import draw_bounding_boxes, draw_heatmaps
+from xcenternet.tensorboard.visualization import draw_bounding_boxes, draw_heatmaps, draw_segmaps
 
 
 class ImageLog(tf.keras.callbacks.Callback):
-    def __init__(self, data, config, log_dir="logs"):
+    def __init__(self, data, config, log_dir="logs", segmentation=False):
         super().__init__()
         self.data = data
         self.config = config
         self.file_writer = tf.summary.create_file_writer(log_dir)
+        self.segmentation = segmentation
 
     def on_epoch_begin(self, epoch, logs=None):
         iterator = iter(self.data)
         inputs, outputs, training_data = next(iterator)
 
         images = inputs["input"]
-        heatmaps, bounding_box_sizes = outputs["heatmap"], outputs["size"]
+        heatmaps, bounding_box_sizes, segmasks = outputs["heatmap"], outputs["size"], outputs["seg_mask"]
         local_offsets, indices, labels = outputs["offset"], training_data["indices"], training_data["labels"]
 
         # calculate bounding boxes
@@ -41,3 +42,13 @@ class ImageLog(tf.keras.callbacks.Callback):
 
         with self.file_writer.as_default():
             tf.summary.image(f"training examples epoch", images_res, max_outputs=len(images_res), step=epoch)
+
+        images_res = [[]] * images.shape[0]
+
+        for i in range(len(images)):
+            images_res[i] = draw_segmaps(images[i], segmasks[i], self.config)
+            images_res[i] /= 255.0
+
+        with self.file_writer.as_default():
+            tf.summary.image(f"seg maps epoch", images_res, max_outputs=len(images_res), step=epoch)
+

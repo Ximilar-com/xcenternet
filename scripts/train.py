@@ -6,7 +6,7 @@ from xcenternet.datasets import CocoDataset, VocDataset, CustomDataset
 from xcenternet.model.callbacks import MAPValidationCallback
 from xcenternet.model.config import ModelConfig, XModelType, XModelBackbone, XModelMode
 from xcenternet.model.model_factory import create_model, load_and_update_model, load_pretrained_weights
-from xcenternet.model.preprocessing.augmentations import EasyAugmentation, HardAugmentation
+from xcenternet.model.preprocessing.augmentations import EasyAugmentation, HardAugmentation, NoAugmentation
 from xcenternet.model.preprocessing.batch_preprocessing import BatchPreprocessing
 from xcenternet.tensorboard.callback import XTensorBoardCallback
 from xcenternet.tensorboard.image_log import ImageLog
@@ -35,7 +35,7 @@ parser.add_argument("--lr", type=float, default=1.25e-4, help="initial learning 
 parser.add_argument("--log_dir", type=str, default="vocsave", help="default savedir")
 parser.add_argument("--load_weights", type=str, default="", help="path to load weights of a model to continue training")
 parser.add_argument("--initial_epoch", type=int, default=0, help="what is initial model")
-parser.add_argument("--eval_freq", type=int, default=5, help="how often to evaluate (epoch)")
+parser.add_argument("--eval_freq", type=int, default=1, help="how often to evaluate (epoch)")
 parser.add_argument("--max_objects", type=int, default=50, help="max number of detected objects")
 parser.add_argument("--map_score_threshold", type=float, default=0.3, help="score threshold for mean average precision")
 parser.add_argument("--map_iou_threshold", type=float, default=0.5, help="iou threshold for mean average precision")
@@ -53,6 +53,12 @@ parser.add_argument(
     dest="no_log_images",
     action="store_true",
     help="If we should show inputs and results images in tensorboard",
+)
+parser.add_argument(
+    "--solo",
+    dest="segmentation",
+    action="store_true",
+    help="If we train also instance segmentation",
 )
 args = parser.parse_args()
 
@@ -83,14 +89,15 @@ model_config = ModelConfig(
 )
 
 # augmentation config
-hard_augmentation = HardAugmentation(0.7)
-easy_augmentation = EasyAugmentation(0.3)
+hard_augmentation = HardAugmentation(0.0)#0.7)
+easy_augmentation = EasyAugmentation(0.0)#0.3)
+no_agumentation = NoAugmentation(1.0)
 
 scheduler_cb = tf.keras.callbacks.LearningRateScheduler(dataset.scheduler)
 # optimizer = tf.keras.optimizers.SGD(dataset.scheduler(args.initial_epoch), momentum=0.9)
 optimizer = tf.keras.optimizers.Adam(dataset.scheduler(args.initial_epoch))
 
-train_processing = BatchPreprocessing(model_config, train=True, augmentations=[hard_augmentation, easy_augmentation])
+train_processing = BatchPreprocessing(model_config, train=True, augmentations=[hard_augmentation, easy_augmentation, no_agumentation], segmentation=args.segmentation)
 train_dataset, train_examples = dataset.load_train_datasets()
 ds = (
     train_dataset.shuffle(min(args.max_shuffle, train_examples), reshuffle_each_iteration=True)
@@ -152,7 +159,7 @@ model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
 model_checkpoint.set_model(model)
 
 log_dir = os.path.join(args.log_dir, "logs")
-image_log = ImageLog(ds, model_config, log_dir=log_dir)
+image_log = ImageLog(ds, model_config, log_dir=log_dir, segmentation=args.segmentation)
 result_log = ResultImageLogCallback(dataset_validation, model_config, model, freq=args.eval_freq, log_dir=log_dir)
 tensorboard = XTensorBoardCallback(log_dir=log_dir, update_freq="epoch", histogram_freq=args.eval_freq)
 mapCallback = MAPValidationCallback(
@@ -166,8 +173,8 @@ mapCallback = MAPValidationCallback(
 )
 
 callbacks = [scheduler_cb, tensorboard, model_checkpoint, mapCallback]
-#if not args.no_log_images:
-#    callbacks += [image_log, result_log]
+if not args.no_log_images:
+    callbacks += [image_log, result_log]
 
 model.fit(
     ds,

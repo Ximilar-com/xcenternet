@@ -42,6 +42,6 @@ class Dataset(ABC):
     @abstractmethod
     def decode(self, *args, **kwargs):
         """
-        :return: (image, labels, bboxes) where
+        :return: (image, labels, bboxes, segmentation, image_id) where
         """
         pass

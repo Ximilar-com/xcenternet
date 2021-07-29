@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import cv2
 import tensorflow as tf
 from xcenternet.model.constants import SOLO_GRID_SIZE
 
@@ -138,7 +139,11 @@ def move_points(center, pct, index, field_1, field_2):
         pct["center"][index] = pct["center"][index] - pct[field_1] / 2
 
 
-def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=False):
+def bound(value, max_v=0, min_v=0):
+    return max(min(value, max_v), min_v)
+
+
+def draw_heatmaps_ttf(shape, bboxes, labels, segmentations, fix_collisions=False, segmentation=False):
     heat_map = np.zeros(shape, dtype=np.float32)
     box_target = np.ones((shape[0], shape[1], shape[2], 4), dtype=np.float32)
     reg_weight = np.zeros((shape[0], shape[1], shape[2], 1), dtype=np.float32)
@@ -152,13 +157,11 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
 
     # go over batch of images
     for b in range(shape[0]):
-        # print("SHABE b", b, bboxes[b])
         centers = []
 
         # sort the boxes by the area from max to min
         areas = np.asarray([bbox_areas_log_np(np.asarray(bbox)) for bbox in bboxes[b]])
         indices = np.argsort(-areas)
-        # print(indices)
 
         bboxes_new = bboxes[b][indices]
         labels_new = labels[b][indices]
@@ -230,10 +233,13 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
                 reg_weight[b, box_target_inds, 0] = local_heatmap / ct_div
 
         if segmentation:
-            # print(segmentations)
             # segmentation categories map for solo
             cat_shape = tf.squeeze(tf.constant([SOLO_GRID_SIZE, SOLO_GRID_SIZE]))
-            seg_centers_tmp = [[center["center"].astype(np.int32)[0] / shape[1] * SOLO_GRID_SIZE, center["center"].astype(np.int32)[1] / shape[2] * SOLO_GRID_SIZE] for center in centers if center["skip"] == False]
+            seg_centers_tmp = [
+                [
+                    bound(center["center"].astype(np.int32)[0] / shape[1] * SOLO_GRID_SIZE, max_v=SOLO_GRID_SIZE-1),
+                    bound(center["center"].astype(np.int32)[1] / shape[2] * SOLO_GRID_SIZE, max_v=SOLO_GRID_SIZE-1)
+                ] for center in centers if center["skip"] == False]
             seg_centers = tf.cast(
                 tf.constant(
                     seg_centers_tmp
@@ -242,7 +248,7 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
             )
             labels_cls = [cls_id + 1 for center, cls_id in zip(centers, labels_new) if center["skip"] == False]
 
-            # only if we have valid bboxes
+            # only if we have some valid bboxes
             if len(labels_cls):
                 cat = tf.scatter_nd(seg_centers, 
                     labels_cls,
@@ -252,11 +258,9 @@ def draw_heatmaps_ttf(shape, bboxes, labels, fix_collisions=False, segmentation=
                 seg_cat[b] = cat.numpy()
 
                 # segmenation maps
-                # ! we need to fill actual instance masks
-                # todo: just finish this
-                ks = tf.constant([[SOLO_GRID_SIZE * int(center[0]) + int(center[1])] for center in seg_centers_tmp], dtype=tf.int32)
+                ks = tf.constant([[bound(SOLO_GRID_SIZE * int(center[0]) + int(center[1]), max_v=(SOLO_GRID_SIZE*SOLO_GRID_SIZE) - 1)] for center in seg_centers_tmp], dtype=tf.int32)
                 mask_shape = tf.concat([[SOLO_GRID_SIZE*SOLO_GRID_SIZE], [shape[2]], [shape[1]]], 0)
-                instance_masks = tf.constant([np.ones((shape[1], shape[2]), dtype=np.int32) for i in range(len(seg_centers_tmp))])
+                instance_masks = tf.constant([cv2.resize(segment, (shape[1], shape[2])) for center, segment in zip(centers, segmentations[b]) if center["skip"] == False])
                 mask = tf.scatter_nd(ks, instance_masks, mask_shape)
                 mask = tf.transpose(mask, perm=[1,2,0]) # shape (W, H, S^2)
                 seg_mask[b] = mask.numpy()

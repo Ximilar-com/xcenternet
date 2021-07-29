@@ -36,7 +36,7 @@ class CocoDataset(Dataset):
         labels = objects["label"]
         bboxes = objects["bbox"]
         image_id = item["image/id"]
-        return image, labels, bboxes, image_id
+        return image, labels, bboxes, [], image_id
 
     def scheduler(self, epoch):
         if epoch < 50:

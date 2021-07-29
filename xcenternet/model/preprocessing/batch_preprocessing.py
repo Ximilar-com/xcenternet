@@ -16,14 +16,16 @@ class BatchPreprocessing(object):
         train: bool,
         resize_before_augmenting: bool = True,
         augmentations: List[Augmentation] = None,
+        segmentation: bool = False,
     ):
         self.model_config = model_config
         self.train = train
         self.resize_before_augmenting = resize_before_augmenting
         self.augmentations = augmentations
+        self.segmentation = segmentation
 
     @tf.function
-    def prepare_for_batch(self, image, labels, bboxes, image_id=-1):
+    def prepare_for_batch(self, image, labels, bboxes, segmentations, image_id=-1):
         """
         All inputs have different dimensions, we need to update them in order to fit the batch,
 
@@ -42,6 +44,7 @@ class BatchPreprocessing(object):
         """
         labels = labels[0 : self.model_config.max_objects]
         bboxes = bboxes[0 : self.model_config.max_objects]
+        segmentations = segmentations[0: self.model_config.max_objects]
         bboxes = tf.reshape(bboxes, (-1, 4))  # always keep the second dimension to be 4, even if there are no objects
 
         # make sure labels and boxes have the correct data type
@@ -56,6 +59,8 @@ class BatchPreprocessing(object):
         )
 
         height, width = tf.shape(image)[0], tf.shape(image)[1]
+        segmentations = tf.image.resize(segmentations, [height, width])
+        tf.print(segmentations.shape)
 
         # make some augmentations
         if self.augmentations:
@@ -70,6 +75,7 @@ class BatchPreprocessing(object):
                     return resize(
                         image,
                         bboxes,
+                        segmentations,
                         tf.cast(tf.cast(height, dtype=tf.float32) / ratio, dtype=tf.int32),
                         tf.cast(tf.cast(width, dtype=tf.float32) / ratio, dtype=tf.int32),
                         keep_aspect_ratio=False,
@@ -77,7 +83,7 @@ class BatchPreprocessing(object):
                     )
 
                 # when the image is just slightly better, there is not need to pre-resize
-                image, bboxes = tf.cond(tf.math.greater(ratio, 1.2), lambda: _preresize(), lambda: (image, bboxes))
+                image, bboxes, segmentations = tf.cond(tf.math.greater(ratio, 1.2), lambda: _preresize(), lambda: (image, bboxes, segmentations))
 
             # probabilities for random.categorical() are unscaled
             probabilities = [tf.cast(aug.probability, dtype=tf.float32) for aug in self.augmentations]
@@ -89,12 +95,13 @@ class BatchPreprocessing(object):
 
         if self.train and not self.model_config.keep_aspect_ratio:
             # randomly chose to keep the image size or spread it out to take the full available space
-            image, bboxes = self.resize_train(image, bboxes, image_size, prob=0.5)
+            image, bboxes, segmentations = self.resize_train(image, bboxes, segmentations, image_size, prob=0.5)
         else:
             # always keep the size or spread depending on the settings
-            image, bboxes = resize(
+            image, bboxes, segmentations = resize(
                 image,
                 bboxes,
+                segmentations,
                 image_size,
                 image_size,
                 keep_aspect_ratio=self.model_config.keep_aspect_ratio,
@@ -106,27 +113,30 @@ class BatchPreprocessing(object):
         mask = tf.cast(mask, dtype=tf.float32)
 
         # update bounding boxes to the correct shape
-        padding_add = self.model_config.max_objects - tf.shape(bboxes)[0]
+        padding_add = tf.math.maximum(self.model_config.max_objects - tf.shape(bboxes)[0], 0)
         bboxes = tf.pad(bboxes, tf.stack([[0, padding_add], [0, 0]]))
 
         # update labels to correct shape
         labels = tf.pad(labels, tf.stack([[0, padding_add]]))
         labels = tf.cast(labels, dtype=tf.int32)
 
-        return image, bboxes, labels, mask, image_id, height, width #, segmentations
+        # update segmentations
+        segmentations = tf.pad(segmentations, tf.stack([[0, padding_add], [0,0], [0,0]]))
+
+        return image, bboxes, labels, mask, image_id, height, width, segmentations
 
     @tf.function
-    def resize_train(self, image, bboxes, max_size, prob=0.5):
-        image, bboxes = tf.cond(
+    def resize_train(self, image, bboxes, segmentations, max_size, prob=0.5):
+        image, bboxes, segmentations = tf.cond(
             tf.math.less(tf.random.uniform([], 0.0, 1.0), prob),
-            lambda: resize(image, bboxes, max_size, max_size, keep_aspect_ratio=True, random_method=True),
-            lambda: resize(image, bboxes, max_size, max_size, keep_aspect_ratio=False, random_method=True),
+            lambda: resize(image, bboxes, segmentations, max_size, max_size, keep_aspect_ratio=True, random_method=True),
+            lambda: resize(image, bboxes, segmentations, max_size, max_size, keep_aspect_ratio=False, random_method=True),
         )
 
-        return image, bboxes
+        return image, bboxes, segmentations
 
     @tf.function
-    def preprocess_batch(self, images, bboxes, labels, mask, image_ids, heights, widths):
+    def preprocess_batch(self, images, bboxes, labels, mask, image_ids, heights, widths, segmentations):
         """
         We have the all the inputs in batches, uniformly sized.
         Images/bounding boxes are augmented if this was required.
@@ -159,6 +169,7 @@ class BatchPreprocessing(object):
 
             # resize and pad image to current batch size (aspect ratios are already solved)
             images = random_resize(images, image_size, image_size)
+            segmentations = random_resize(segmentations, image_size, image_size)
 
         # transform bounding boxes from relative to absolute coordinates
         bboxes *= tf.cast(image_size, tf.float32)
@@ -191,7 +202,7 @@ class BatchPreprocessing(object):
             # otherwise we are fittint TTF net
             heatmap_dense, box_target, reg_weight, off, seg_cate, seg_mask = tf.numpy_function(
                 func=draw_heatmaps_ttf,
-                inp=[heatmap_shape, bboxes, labels, tf.constant(True), tf.constant(False)],
+                inp=[heatmap_shape, bboxes, labels, segmentations, tf.constant(True), tf.constant(self.segmentation)],
                 Tout=[tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32],
             )
             heatmap_dense = tf.reshape(heatmap_dense, heatmap_shape)

@@ -51,7 +51,7 @@ class VocDataset(Dataset):
         labels = objects["label"]
         bboxes = objects["bbox"]
         image_id = 0
-        return image, labels, bboxes, image_id
+        return image, labels, bboxes, [], image_id
 
     def scheduler(self, epoch):
         if epoch < 100:
