@@ -27,6 +27,7 @@ def tf_py_segmentations(segmentations, h, w):
     segmentations.set_shape((None,BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1))
     return segmentations
 
+
 class BatchPreprocessing(object):
     def __init__(
         self,
@@ -145,7 +146,7 @@ class BatchPreprocessing(object):
         # update segmentations
         segmentations = tf.squeeze(segmentations, axis=3) # from (number of masks, size, size, 1) to (number of masks, size, size)
         segmentations = tf.pad(segmentations, tf.stack([[0, padding_add], [0,0], [0,0]])) # convert to (padded, size, size)
-        segmentations = tf.cast(segmentations, dtype=tf.bool) # for memory saving
+        segmentations = tf.cast(segmentations, dtype=tf.bool) # for memory saving ???
 
         return image, bboxes, labels, mask, image_id, height, width, segmentations
 

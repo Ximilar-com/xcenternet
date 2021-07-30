@@ -98,7 +98,13 @@ scheduler_cb = tf.keras.callbacks.LearningRateScheduler(dataset.scheduler)
 # optimizer = tf.keras.optimizers.SGD(dataset.scheduler(args.initial_epoch), momentum=0.9)
 optimizer = tf.keras.optimizers.Adam(dataset.scheduler(args.initial_epoch))
 
-train_processing = BatchPreprocessing(model_config, train=True, augmentations=[hard_augmentation, easy_augmentation, no_agumentation], segmentation=args.segmentation)
+train_processing = BatchPreprocessing(
+    model_config,
+    train=True,
+    augmentations=[hard_augmentation, easy_augmentation, no_agumentation],
+    segmentation=args.segmentation
+)
+
 train_dataset, train_examples = dataset.load_train_datasets()
 ds = (
     train_dataset.shuffle(min(args.max_shuffle, train_examples), reshuffle_each_iteration=True)
