@@ -68,22 +68,17 @@ class CustomDataset(Dataset):
                     [float(bbox[1]), float(bbox[0]), float(bbox[1]) + float(bbox[3]), float(bbox[0]) + float(bbox[2])]
                     for bbox in record["bboxes"]
                 ]
-                seg_masks = []
-                for segmentations in record["segmentations"]:
-                    mask = np.zeros((BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE))
-                    for segmentation in segmentations:
-                        points = np.asarray([[int((x/record["width"]) * BASE_SEG_MASK_SIZE), int((y/record["height"]) * BASE_SEG_MASK_SIZE)] for x, y in zip(segmentation[::2], list(reversed(segmentation[::-2])))])
-                        cv2.fillPoly(mask, [points], color=(1,1,1))
-                    seg_masks.append(mask.astype(np.float32))
-
-                yield int(record["image_id"]), record["file_name"], [self.labels[label] for label in record["labels"]], bboxes, seg_masks
+                # print(record["segmentations"])
+                yield int(record["image_id"]), record["file_name"], [self.labels[label] for label in record["labels"]], bboxes, tf.ragged.constant(record["segmentations"], dtype=tf.float32)
 
         output_signature = (
             tf.TensorSpec(shape=(), dtype=tf.int32),
             tf.TensorSpec(shape=(), dtype=tf.string),
             tf.TensorSpec(shape=(None,), dtype=tf.float32),
-            tf.TensorSpec(shape=(None,4), dtype=tf.float32),
-            tf.TensorSpec(shape=(None, BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE), dtype=tf.float32)
+            tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+            #tf.TensorSpec(shape=(None, None), dtype=tf.float32),
+            tf.RaggedTensorSpec(shape=(None, None, None), dtype=tf.float32)
+            # tf.TensorSpec(shape=(None, BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1), dtype=tf.float32)
         )
         return tf.data.Dataset.from_generator(gen, output_signature=output_signature)
 
@@ -94,11 +89,13 @@ class CustomDataset(Dataset):
         return self._preprocess_record(self.records_validation), len(self.records_validation)
 
     def decode(self, image_id, file_name, labels, bboxes, seg_masks):
+        seg_masks = seg_masks.to_tensor()
         image = self._load_image({"file_name": file_name})
 
         h, w = tf.cast(tf.shape(image)[0], tf.float32), tf.cast(tf.shape(image)[1], tf.float32)
         bboxes /= tf.stack([h, w, h, w])
 
+        # seg_masks = tf_py_segmentations(seg_masks, h, w)
         return image, labels, bboxes, seg_masks, image_id
 
     def scheduler(self, epoch):
@@ -108,6 +105,24 @@ class CustomDataset(Dataset):
             return self.initial_learning_rate * 0.1
         else:
             return self.initial_learning_rate * 0.01
+
+
+def get_segmentations(segments, h, w):
+    seg_masks = []
+    for segmentations in segments:
+        mask = np.zeros((BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1))
+        for segmentation in segmentations:
+            points = np.asarray([[int((x/w) * BASE_SEG_MASK_SIZE), int((y/h) * BASE_SEG_MASK_SIZE)] for x, y in zip(segmentation[::2], list(reversed(segmentation[::-2])))])
+            cv2.fillPoly(mask, [points], color=(1,1,1))
+        seg_masks.append(mask)#.astype(np.float32).tolist())
+    return np.asarray(seg_masks, dtype=np.float32)
+
+
+@tf.function
+def tf_py_segmentations(segmentations, h, w):
+    segmentations = tf.py_function(get_segmentations, [segmentations, h, w], Tout=tf.float32)
+    segmentations.set_shape((None,BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1))
+    return segmentations
 
 
 if __name__ == "__main__":

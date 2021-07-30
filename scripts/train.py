@@ -36,10 +36,10 @@ parser.add_argument("--log_dir", type=str, default="vocsave", help="default save
 parser.add_argument("--load_weights", type=str, default="", help="path to load weights of a model to continue training")
 parser.add_argument("--initial_epoch", type=int, default=0, help="what is initial model")
 parser.add_argument("--eval_freq", type=int, default=1, help="how often to evaluate (epoch)")
-parser.add_argument("--max_objects", type=int, default=50, help="max number of detected objects")
+parser.add_argument("--max_objects", type=int, default=10, help="max number of detected objects")
 parser.add_argument("--map_score_threshold", type=float, default=0.3, help="score threshold for mean average precision")
 parser.add_argument("--map_iou_threshold", type=float, default=0.5, help="iou threshold for mean average precision")
-parser.add_argument("--max_shuffle", type=int, default=10000, help="train shuffle samples")
+parser.add_argument("--max_shuffle", type=int, default=100, help="train shuffle samples")
 parser.add_argument("--num_parallel_calls", type=int, default=-1, help="parallel calls for mapping, -1 for autotune")
 parser.add_argument("--prefetch", type=int, default=-1, help="how many batches to prefetch, -1 for autotune")
 parser.add_argument(
@@ -89,6 +89,7 @@ model_config = ModelConfig(
 )
 
 # augmentation config
+# ! todo
 hard_augmentation = HardAugmentation(0.0)#0.7)
 easy_augmentation = EasyAugmentation(0.0)#0.3)
 no_agumentation = NoAugmentation(1.0)
@@ -109,15 +110,15 @@ ds = (
 )
 
 # validation dataset
-validation_processing = BatchPreprocessing(model_config, train=False)
-validation_dataset, validation_examples = dataset.load_validation_datasets()
-dataset_validation = (
-    validation_dataset.map(dataset.decode, num_parallel_calls=args.num_parallel_calls)
-    .map(validation_processing.prepare_for_batch, num_parallel_calls=args.num_parallel_calls)
-    .batch(args.batch_size)
-    .map(validation_processing.preprocess_batch, num_parallel_calls=args.num_parallel_calls)
-    .prefetch(args.prefetch)
-)
+# validation_processing = BatchPreprocessing(model_config, train=False)
+# validation_dataset, validation_examples = dataset.load_validation_datasets()
+# dataset_validation = (
+#     validation_dataset.map(dataset.decode, num_parallel_calls=args.num_parallel_calls)
+#     .map(validation_processing.prepare_for_batch, num_parallel_calls=args.num_parallel_calls)
+#     .batch(args.batch_size)
+#     .map(validation_processing.preprocess_batch, num_parallel_calls=args.num_parallel_calls)
+#     .prefetch(4) #args.prefetch)
+# )
 
 #strategy = tf.distribute.MirroredStrategy()
 # print("Number of gpu devices: {}".format(strategy.num_replicas_in_sync))
@@ -160,27 +161,27 @@ model_checkpoint.set_model(model)
 
 log_dir = os.path.join(args.log_dir, "logs")
 image_log = ImageLog(ds, model_config, log_dir=log_dir, segmentation=args.segmentation)
-result_log = ResultImageLogCallback(dataset_validation, model_config, model, freq=args.eval_freq, log_dir=log_dir)
+# result_log = ResultImageLogCallback(dataset_validation, model_config, model, freq=args.eval_freq, log_dir=log_dir)
 tensorboard = XTensorBoardCallback(log_dir=log_dir, update_freq="epoch", histogram_freq=args.eval_freq)
-mapCallback = MAPValidationCallback(
-    log_dir,
-    dataset_validation,
-    model,
-    model_config.max_objects,
-    model_config.labels,
-    args.map_iou_threshold,
-    args.map_score_threshold,
-)
+# mapCallback = MAPValidationCallback(
+#     log_dir,
+#     dataset_validation,
+#     model,
+#     model_config.max_objects,
+#     model_config.labels,
+#     args.map_iou_threshold,
+#     args.map_score_threshold,
+# )
 
-callbacks = [scheduler_cb, tensorboard, model_checkpoint, mapCallback]
+callbacks = [scheduler_cb, tensorboard, model_checkpoint]#, mapCallback]
 if not args.no_log_images:
-    callbacks += [image_log, result_log]
+    callbacks += [image_log] #, result_log]
 
 model.fit(
     ds,
     epochs=args.epochs,
     initial_epoch=args.initial_epoch,
-    validation_data=dataset_validation,
+    #validation_data=dataset_validation,
     validation_freq=args.eval_freq,
     callbacks=callbacks,
 )

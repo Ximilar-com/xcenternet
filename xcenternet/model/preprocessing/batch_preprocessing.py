@@ -1,4 +1,6 @@
 import tensorflow as tf
+import numpy as np
+import cv2
 from typing import List
 
 from tf_image.core.bboxes.resize import resize
@@ -6,8 +8,24 @@ from tf_image.core.resize import random_resize
 from xcenternet.model.config import ModelConfig, XModelType
 from xcenternet.model.encoder import draw_heatmaps, draw_heatmaps_ttf
 from xcenternet.model.preprocessing.augmentations import Augmentation
-from xcenternet.model.constants import SOLO_GRID_SIZE
+from xcenternet.model.constants import SOLO_GRID_SIZE,BASE_SEG_MASK_SIZE
 
+def get_segmentations(segments, h, w):
+    seg_masks = []
+    for segmentations in segments:
+        mask = np.zeros((BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1))
+        for segmentation in segmentations:
+            points = np.asarray([[int((x/w) * BASE_SEG_MASK_SIZE), int((y/h) * BASE_SEG_MASK_SIZE)] for x, y in zip(segmentation[::2], list(reversed(segmentation[::-2])))])
+            cv2.fillPoly(mask, [points], color=(1,1,1))
+        seg_masks.append(mask)#.astype(np.float32).tolist())
+    return np.asarray(seg_masks, dtype=np.float32)
+
+
+@tf.function
+def tf_py_segmentations(segmentations, h, w):
+    segmentations = tf.py_function(get_segmentations, [segmentations, h, w], Tout=tf.float32)
+    segmentations.set_shape((None,BASE_SEG_MASK_SIZE, BASE_SEG_MASK_SIZE, 1))
+    return segmentations
 
 class BatchPreprocessing(object):
     def __init__(
@@ -39,12 +57,18 @@ class BatchPreprocessing(object):
         :param labels: 1-D Tensor with labels for every object
         :param bboxes: 2-D Tensor of shape (objects, 4) containing bounding boxes in format [ymin, xmin, ymin, xmax]
                        in relative coordinates
+        :param segmentations: 4-D tensor of shape [number of masks, size, size, 1]
         :param image_id: Id of image, requirement for coco evaluation
         :return: (image, bboxes, labels, mask)
         """
         labels = labels[0 : self.model_config.max_objects]
         bboxes = bboxes[0 : self.model_config.max_objects]
+
+        height, width = tf.shape(image)[0], tf.shape(image)[1]
+
+        segmentations = tf_py_segmentations(segmentations, tf.cast(height, dtype=tf.float32), tf.cast(width, dtype=tf.float32))
         segmentations = segmentations[0: self.model_config.max_objects]
+
         bboxes = tf.reshape(bboxes, (-1, 4))  # always keep the second dimension to be 4, even if there are no objects
 
         # make sure labels and boxes have the correct data type
@@ -58,9 +82,7 @@ class BatchPreprocessing(object):
             else self.model_config.image_size
         )
 
-        height, width = tf.shape(image)[0], tf.shape(image)[1]
         segmentations = tf.image.resize(segmentations, [height, width])
-        tf.print(segmentations.shape)
 
         # make some augmentations
         if self.augmentations:
@@ -121,7 +143,9 @@ class BatchPreprocessing(object):
         labels = tf.cast(labels, dtype=tf.int32)
 
         # update segmentations
-        segmentations = tf.pad(segmentations, tf.stack([[0, padding_add], [0,0], [0,0]]))
+        segmentations = tf.squeeze(segmentations, axis=3) # from (number of masks, size, size, 1) to (number of masks, size, size)
+        segmentations = tf.pad(segmentations, tf.stack([[0, padding_add], [0,0], [0,0]])) # convert to (padded, size, size)
+        segmentations = tf.cast(segmentations, dtype=tf.bool) # for memory saving
 
         return image, bboxes, labels, mask, image_id, height, width, segmentations
 
@@ -153,6 +177,7 @@ class BatchPreprocessing(object):
         :param widths: original widths of images (not resized)
         """
         images = tf.cast(images, tf.float32)
+        segmentations = tf.cast(segmentations, dtype=tf.float32)
 
         # select the current batch size, if the variation is greater than 0
         image_size = self.model_config.image_size
