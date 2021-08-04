@@ -13,7 +13,7 @@ def create_mobilenetv2_10(height, width, pretrained: bool, mode: XModelMode = XM
     base_model = tf.keras.applications.mobilenet_v2.MobileNetV2(input_shape=shape, alpha=1.0, include_top=False, weights="imagenet" if pretrained else None)
 
     inputs = tf.keras.Input(shape=shape, name="input")
-    x = PreprocessTFLayer()(inputs)
+    x = tf.cast(inputs, tf.float32)/255.0
 
     base_model, features = upsample(
         base_model,
@@ -31,7 +31,7 @@ def create_mobilenetv2_035(height, width, pretrained: bool, mode: XModelMode = X
     base_model = tf.keras.applications.mobilenet_v2.MobileNetV2(input_shape=shape, alpha=0.35, include_top=False, weights="imagenet" if pretrained else None)
 
     inputs = tf.keras.Input(shape=shape, name="input")
-    x = PreprocessTFLayer()(inputs)
+    x = tf.cast(inputs, tf.float32)/255.0
 
     base_model, features = upsample(
         base_model,
