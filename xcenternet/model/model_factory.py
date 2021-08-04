@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from xcenternet.model.backbone.efficientnet import create_efficientnetb0
 from xcenternet.model.backbone.resnet import create_resnet, create_resnet_18
+from xcenternet.model.backbone.mobilenetv2 import create_mobilenetv2_10, create_mobilenetv2_035
 from xcenternet.model.centernet import XCenternetModel, XTTFModel
 from xcenternet.model.config import XModelType, XModelBackbone, XModelMode
 from xcenternet.model.constants import L2_REG, ACTIVATION, KERNEL_INIT
@@ -12,6 +13,8 @@ CREATE_MODELS = {
     XModelBackbone.RESNET18: lambda w, h, pretrained, mode: create_resnet_18(w, h, pretrained, mode),
     XModelBackbone.RESNET50: lambda w, h, pretrained, mode: create_resnet(w, h, pretrained, mode),
     XModelBackbone.EFFICIENTNETB0: lambda w, h, pretrained, mode: create_efficientnetb0(w, h, pretrained, mode),
+    XModelBackbone.MOBILENETV2_035: lambda w, h, pretrained, mode: create_mobilenetv2_035(w, h, pretrained, mode),
+    XModelBackbone.MOBILENETV2_10: lambda w, h, pretrained, mode: create_mobilenetv2_10(w, h, pretrained, mode),
 }
 
 

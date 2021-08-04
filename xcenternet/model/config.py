@@ -6,6 +6,8 @@ class XModelBackbone(Enum):
     RESNET18 = auto()
     RESNET50 = auto()
     EFFICIENTNETB0 = auto()
+    MOBILENETV2_10 = auto()
+    MOBILENETV2_035 = auto()
 
     def __repr__(self):
         return f"{self.__class__.__name__}.{self.name}"
